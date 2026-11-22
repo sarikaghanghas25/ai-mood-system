@@ -57,6 +57,104 @@ const MOOD_META = {
   },
 };
 
+/*
+ * Look and words of the app for the latest mood.
+ * colors: three gradient stops, a soft background and a text colour.
+ */
+const MOOD_THEME = {
+  happy: {
+    colors: ["#e07b00", "#f0932b", "#f6b143", "#fff3dc", "#b5651d"],
+    sky: "☀️",
+    title: "You're glowing today!",
+    subtitle: "Keep this energy going and share the joy.",
+    status: "Feeling happy",
+    art: ["Keep", "Smiling", "☀"],
+    sidebar: { icon: "🌻", lines: ["Enjoy the", "Good Moments"], note: "😄 Share the joy!" },
+    side: { kicker: "Keep it up", title: ["spread the", "good vibes 💛"], note: "Your energy is contagious!" },
+  },
+  sad: {
+    colors: ["#3b6fd8", "#5b8def", "#8db3f5", "#e4eeff", "#3f63b8"],
+    sky: "🌧️",
+    title: "It's okay to feel low.",
+    subtitle: "Be gentle with yourself today. You're not alone in this.",
+    status: "One step at a time",
+    art: ["You're", "Not", "Alone 💙"],
+    sidebar: { icon: "🌦️", lines: ["Rain Passes,", "Sun Returns"], note: "💙 Be kind to yourself" },
+    side: { kicker: "One small step", title: ["towards feeling", "better 💙"], note: "Talk to your AI Companion" },
+  },
+  angry: {
+    colors: ["#0f8f7e", "#23a594", "#5cc5b0", "#dcf5ef", "#137a6b"],
+    sky: "🍃",
+    title: "Take a deep breath.",
+    subtitle: "Your feelings are valid. Let's cool down before reacting.",
+    status: "Breathing it out",
+    art: ["Breathe", "In &", "Out 🍃"],
+    sidebar: { icon: "🍃", lines: ["Calm Mind,", "Clear Choices"], note: "🍃 Pause before you react" },
+    side: { kicker: "Cool down", title: ["one breath", "at a time 🍃"], note: "Vent to your AI Companion" },
+  },
+  tired: {
+    colors: ["#4b4f9c", "#6b6fb8", "#9a9ed6", "#eceefb", "#5559a3"],
+    sky: "🌙",
+    title: "Time to slow down.",
+    subtitle: "Rest isn't lazy. Your body and mind need a recharge.",
+    status: "Recharging",
+    art: ["Rest", "&", "Recharge 🌙"],
+    sidebar: { icon: "🌙", lines: ["Rest Well,", "Wake Fresh"], note: "🌙 Sleep is self-care" },
+    side: { kicker: "Go easy", title: ["rest is part", "of progress 🌙"], note: "Take a short break" },
+  },
+  anxious: {
+    colors: ["#1f8fb3", "#3fa9c9", "#7cc8dd", "#dff3f9", "#1d7a98"],
+    sky: "🫧",
+    title: "You're safe right now.",
+    subtitle: "Slow breaths. Focus on what you can control today.",
+    status: "One moment at a time",
+    art: ["Breathe", "Slow,", "Stay Calm"],
+    sidebar: { icon: "🫧", lines: ["One Breath,", "One Step"], note: "🫧 You've got this" },
+    side: { kicker: "Ground yourself", title: ["focus on what", "you can control 🫧"], note: "Talk it through with your AI Companion" },
+  },
+  stressed: {
+    colors: ["#2e8b57", "#46a86c", "#7cc795", "#e2f5e9", "#2e7d4f"],
+    sky: "🌿",
+    title: "One thing at a time.",
+    subtitle: "You don't have to do it all at once. Take a break when you need it.",
+    status: "Step by step",
+    art: ["Pause", "&", "Prioritise 🌿"],
+    sidebar: { icon: "🌿", lines: ["Small Steps,", "Big Progress"], note: "🌿 You can handle this" },
+    side: { kicker: "Slow down", title: ["small steps", "still count 🌿"], note: "Take a 5-minute break" },
+  },
+  neutral: {
+    colors: ["#3173f1", "#5f76ee", "#8b9ff8", "#e6eeff", "#5178db"],
+    sky: "☀️",
+    title: "Welcome Back!",
+    subtitle: "Your emotions matter. Let's make today better.",
+    status: "You're doing great!",
+    art: ["Good", "Vibes", "Only ♡"],
+    sidebar: { icon: "🌱", lines: ["Better Mood", "Brighter Future"], note: "💜 You got this!" },
+    side: { kicker: "Small steps", title: ["towards a better", "mood 💜"], note: "You're doing great!" },
+  },
+};
+
+const moodTheme = (mood) =>
+  MOOD_THEME[String(mood || "").toLowerCase()] ||
+  MOOD_THEME.neutral;
+
+// CSS variables the stylesheet uses for every mood-coloured surface
+const moodThemeStyle = (theme) => ({
+  "--mood-1": theme.colors[0],
+  "--mood-2": theme.colors[1],
+  "--mood-3": theme.colors[2],
+  "--mood-soft": theme.colors[3],
+  "--mood-ink": theme.colors[4],
+});
+
+const timeGreeting = () => {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return "Good Morning";
+  if (hour < 17) return "Good Afternoon";
+  return "Good Evening";
+};
+
 const moodInfo = (mood) => {
   const key = String(mood || "neutral").toLowerCase();
 
@@ -1074,6 +1172,9 @@ function App() {
     dashboard?.latest_mood ||
     "—";
 
+  // Colours and words of the app follow the latest mood
+  const theme = moodTheme(latestMood);
+
   const latestConfidence =
     result?.confidence ??
     latestHistory?.confidence ??
@@ -1472,7 +1573,10 @@ function App() {
    */
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      style={moodThemeStyle(theme)}
+    >
       {mobileMenu && (
         <div
           className="mobile-overlay"
@@ -1697,18 +1801,20 @@ function App() {
 
         <div className="sidebar-bottom">
           <div className="motivation-card">
-            <span>🌱</span>
+            <span>
+              {theme.sidebar.icon}
+            </span>
 
             <strong>
-              Better Mood
+              {theme.sidebar.lines[0]}
             </strong>
 
             <strong>
-              Brighter Future
+              {theme.sidebar.lines[1]}
             </strong>
 
             <small>
-              💜 You got this!
+              {theme.sidebar.note}
             </small>
           </div>
         </div>
@@ -1827,35 +1933,37 @@ function App() {
           <section className="hero-banner">
             <div className="hero-content">
               <span>
-                Good Morning,{" "}
+                {timeGreeting()},{" "}
                 {user?.name ||
                   "there"}! 👋
               </span>
 
               <h1>
-                Welcome Back!
+                {theme.title}
               </h1>
 
               <p>
-                Your emotions matter.
-                Let's make today
-                better.
+                {theme.subtitle}
               </p>
 
               <div className="hero-status">
                 <span>●</span>
 
-                You're doing great!
+                {theme.status}
               </div>
             </div>
 
             <div className="hero-art">
               <div className="hero-sun">
-                ☀️
+                {theme.sky}
               </div>
 
               <div className="hero-planet">
-                ☺
+                {latestMood === "—"
+                  ? "☺"
+                  : moodInfo(
+                      latestMood
+                    ).emoji}
               </div>
 
               <span className="hero-cloud cloud-one">
@@ -1867,11 +1975,11 @@ function App() {
               </span>
 
               <span className="hero-text">
-                Good
+                {theme.art[0]}
                 <br />
-                Vibes
+                {theme.art[1]}
                 <br />
-                Only ♡
+                {theme.art[2]}
               </span>
             </div>
           </section>
@@ -3338,17 +3446,17 @@ function App() {
 
               <div className="side-motivation">
                 <span>
-                  Small steps
+                  {theme.side.kicker}
                 </span>
 
                 <strong>
-                  towards a better
+                  {theme.side.title[0]}
                   <br />
-                  mood 💜
+                  {theme.side.title[1]}
                 </strong>
 
                 <p>
-                  You're doing great!
+                  {theme.side.note}
                 </p>
 
                 <button

@@ -37,9 +37,9 @@ def mood_and_recommend(
     mood = ai_result["mood"]
     confidence = ai_result["confidence"]
 
+    # Recommendations follow the main mood only
     recommendations = get_recommendations(
         mood,
-        moods=ai_result["moods"],
         user_id=current_user.id,
     )
 
