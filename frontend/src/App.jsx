@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Line,
   LineChart,
   Pie,
@@ -826,6 +823,57 @@ function RecommendationWheel({ recommendations }) {
     </div>
   );
 }
+
+// Round progress ring for scores like 3.1 / 5 or 64%
+function ScoreRing({ value, max, children }) {
+  const number = Number(value);
+  const valid = Number.isFinite(number);
+  const fraction = valid ? Math.min(Math.max(number / max, 0), 1) : 0;
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+
+  return (
+    <div className="score-ring">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle className="score-ring-track" cx="32" cy="32" r={radius} />
+        <circle
+          className="score-ring-fill"
+          cx="32"
+          cy="32"
+          r={radius}
+          style={{
+            strokeDasharray: circumference,
+            "--offset": circumference * (1 - fraction),
+            "--full": circumference,
+          }}
+        />
+      </svg>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+// Emoji for each "What AI noticed" line, picked from its words
+const insightIcon = (message) => {
+  const text = String(message).toLowerCase();
+
+  if (/improv|better|positive|happy/.test(text)) return "🌟";
+  if (/declin|lower|drop/.test(text)) return "📉";
+  if (/stress|anger|angry|relax/.test(text)) return "🧘";
+  if (/sad|low|lonely/.test(text)) return "💙";
+  if (/tired|sleep|rest/.test(text)) return "🌙";
+  if (/stable|steady/.test(text)) return "⚖️";
+  return "💡";
+};
+
+// Arrow and colour for the mood trend
+const trendInfo = (trend) => {
+  const text = String(trend || "").toLowerCase();
+
+  if (text.includes("improv")) return { key: "up", arrow: "↑" };
+  if (text.includes("declin")) return { key: "down", arrow: "↓" };
+  return { key: "stable", arrow: "→" };
+};
 
 function EmptyState({ text }) {
   return (
@@ -1800,16 +1848,32 @@ function App() {
         );
       });
 
+      // Most frequent first, for the legend
       return Object.entries(
         counts
-      ).map(([mood, value]) => ({
-        name: moodInfo(mood).label,
+      )
+        .map(([mood, value]) => ({
+          name: moodInfo(mood).label,
 
-        value,
+          value,
 
-        color: moodInfo(mood).color,
-      }));
+          color: moodInfo(mood).color,
+        }))
+        .sort(
+          (a, b) => b.value - a.value
+        );
     }, [history]);
+
+  const distributionTotal =
+    distributionData.reduce(
+      (sum, entry) => sum + entry.value,
+      0
+    );
+
+  const distributionTop =
+    distributionData[0] || {
+      name: "Neutral",
+    };
 
   /*
    * =====================================================
@@ -3131,7 +3195,11 @@ function App() {
                 </div>
 
                 <div className="insight-stats">
-                  <div className="insight-card">
+                  <div
+                    className={`insight-card trend-${
+                      trendInfo(moodTrend).key
+                    }`}
+                  >
                     <span>📈</span>
 
                     <div>
@@ -3139,7 +3207,14 @@ function App() {
                         Mood Trend
                       </small>
 
-                      <strong>
+                      <strong className="trend-badge">
+                        <b>
+                          {
+                            trendInfo(
+                              moodTrend
+                            ).arrow
+                          }
+                        </b>{" "}
                         {moodTrend}
                       </strong>
                     </div>
@@ -3154,13 +3229,24 @@ function App() {
                       </small>
 
                       <strong>
-                        {totalChecks}
+                        <AnimatedValue
+                          value={
+                            totalChecks
+                          }
+                        />
                       </strong>
                     </div>
                   </div>
 
                   <div className="insight-card">
-                    <span>⭐</span>
+                    <ScoreRing
+                      value={parseFloat(
+                        averageScore
+                      )}
+                      max={5}
+                    >
+                      ⭐
+                    </ScoreRing>
 
                     <div>
                       <small>
@@ -3184,7 +3270,14 @@ function App() {
                   </div>
 
                   <div className="insight-card">
-                    <span>😊</span>
+                    <ScoreRing
+                      value={
+                        positivePercentage
+                      }
+                      max={100}
+                    >
+                      😊
+                    </ScoreRing>
 
                     <div>
                       <small>
@@ -3218,8 +3311,19 @@ function App() {
                             key={
                               index
                             }
+                            style={{
+                              "--i": index,
+                            }}
                           >
-                            {message}
+                            <span className="insight-icon">
+                              {insightIcon(
+                                message
+                              )}
+                            </span>
+
+                            <p>
+                              {message}
+                            </p>
                           </li>
                         )
                       )}
@@ -3274,57 +3378,158 @@ function App() {
                   </div>
                 </div>
 
-                <div className="chart-container pie-container">
-                  {distributionData.length >
-                  0 ? (
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <PieChart>
-                        <Pie
-                          data={
-                            distributionData
-                          }
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="45%"
-                          innerRadius={
-                            80
-                          }
-                          outerRadius={
-                            130
-                          }
-                          paddingAngle={
-                            3
-                          }
-                        >
-                          {distributionData.map(
-                            (
-                              entry
-                            ) => (
-                              <Cell
-                                key={
-                                  entry.name
-                                }
-                                fill={
-                                  entry.color
-                                }
-                              />
-                            )
-                          )}
-                        </Pie>
+                {distributionData.length >
+                0 ? (
+                  <div className="distribution-layout">
+                    <div className="donut-wrap">
+                      <ResponsiveContainer
+                        width="100%"
+                        height="100%"
+                      >
+                        <PieChart>
+                          <Pie
+                            data={
+                              distributionData
+                            }
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="68%"
+                            outerRadius="95%"
+                            paddingAngle={
+                              3
+                            }
+                            cornerRadius={
+                              8
+                            }
+                            stroke="none"
+                            animationDuration={
+                              1100
+                            }
+                          >
+                            {distributionData.map(
+                              (
+                                entry
+                              ) => (
+                                <Cell
+                                  key={
+                                    entry.name
+                                  }
+                                  fill={
+                                    entry.color
+                                  }
+                                />
+                              )
+                            )}
+                          </Pie>
 
-                        <Tooltip />
+                          <Tooltip
+                            formatter={(
+                              value,
+                              name
+                            ) => [
+                              `${value} check-ins`,
+                              name,
+                            ]}
+                            contentStyle={{
+                              border:
+                                "none",
+                              borderRadius: 12,
+                              boxShadow:
+                                "0 10px 30px rgba(40,50,110,0.15)",
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
 
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <EmptyState text="Mood distribution will appear after you analyze some moods." />
-                  )}
-                </div>
+                      <div className="donut-center">
+                        <span>
+                          {
+                            moodInfo(
+                              distributionTop.name
+                            ).emoji
+                          }
+                        </span>
+
+                        <strong>
+                          {
+                            distributionTop.name
+                          }
+                        </strong>
+
+                        <small>
+                          most often
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="distribution-legend">
+                      {distributionData.map(
+                        (
+                          entry,
+                          index
+                        ) => {
+                          const percent =
+                            Math.round(
+                              (entry.value /
+                                distributionTotal) *
+                                100
+                            );
+
+                          return (
+                            <div
+                              className="legend-row"
+                              key={
+                                entry.name
+                              }
+                              style={{
+                                "--color":
+                                  entry.color,
+                                "--i": index,
+                              }}
+                            >
+                              <span className="legend-emoji">
+                                {
+                                  moodInfo(
+                                    entry.name
+                                  ).emoji
+                                }
+                              </span>
+
+                              <div className="legend-main">
+                                <div className="legend-top">
+                                  <strong>
+                                    {
+                                      entry.name
+                                    }
+                                  </strong>
+
+                                  <small>
+                                    {
+                                      entry.value
+                                    }{" "}
+                                    · {percent}%
+                                  </small>
+                                </div>
+
+                                <i className="legend-bar">
+                                  <em
+                                    style={{
+                                      width: `${percent}%`,
+                                    }}
+                                  />
+                                </i>
+                              </div>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState text="Mood distribution will appear after you analyze some moods." />
+                )}
               </section>
 
               {/* =================================================
@@ -3356,86 +3561,74 @@ function App() {
                   </div>
                 </div>
 
-                <div className="chart-container">
-                  {probabilityData.length >
-                  0 ? (
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <BarChart
-                        data={
-                          probabilityData
-                        }
-                        margin={{
-                          top: 15,
-                          right: 20,
-                          left: 0,
-                          bottom: 5,
-                        }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          vertical={
-                            false
-                          }
-                        />
-
-                        <XAxis
-                          dataKey="mood"
-                        />
-
-                        <YAxis
-                          domain={[
-                            0,
-                            100,
-                          ]}
-                          unit="%"
-                        />
-
-                        <Tooltip
-                          formatter={(
-                            value
-                          ) => [
-                            `${Number(
-                              value
-                            ).toFixed(
-                              0
-                            )}%`,
-                            "Probability",
-                          ]}
-                        />
-
-                        <Bar
-                          dataKey="value"
-                          radius={[
-                            10,
-                            10,
-                            0,
-                            0,
-                          ]}
+                {probabilityData.length >
+                0 ? (
+                  // Re-keyed per result so the bars fill up again
+                  <div
+                    className="prob-bars"
+                    key={probabilityData
+                      .map(
+                        (entry) =>
+                          `${entry.mood}${entry.value.toFixed(0)}`
+                      )
+                      .join("-")}
+                  >
+                    {probabilityData.map(
+                      (entry, index) => (
+                        <div
+                          className={`prob-row ${
+                            index === 0
+                              ? "is-top"
+                              : ""
+                          }`}
+                          key={entry.mood}
+                          style={{
+                            "--color":
+                              entry.color,
+                            "--i": index,
+                          }}
                         >
-                          {probabilityData.map(
-                            (
-                              entry
-                            ) => (
-                              <Cell
-                                key={
-                                  entry.mood
-                                }
-                                fill={
-                                  entry.color
-                                }
-                              />
-                            )
-                          )}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <EmptyState text="Analyze your mood to see AI probability data." />
-                  )}
-                </div>
+                          <span className="prob-emoji">
+                            {
+                              moodInfo(
+                                entry.mood
+                              ).emoji
+                            }
+                          </span>
+
+                          <strong>
+                            {entry.mood}
+
+                            {index === 0 && (
+                              <em>Top</em>
+                            )}
+                          </strong>
+
+                          <i className="prob-track">
+                            <em
+                              style={{
+                                width: `${Math.max(
+                                  entry.value,
+                                  1.5
+                                )}%`,
+                              }}
+                            />
+                          </i>
+
+                          <b>
+                            <AnimatedValue
+                              value={`${entry.value.toFixed(
+                                0
+                              )}%`}
+                            />
+                          </b>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <EmptyState text="Analyze your mood to see AI probability data." />
+                )}
               </section>
 
               {/* =================================================
