@@ -48,6 +48,7 @@ TRIPLES_PER_COMBO = 30
 NEGATIONS_PER_COMBO = 40
 NEUTRAL_COUNT = 450
 GOEMOTIONS_PER_MOOD = 350
+EVENTS_PER_GROUP = 45
 
 
 # ============================================================
@@ -231,6 +232,90 @@ NEUTRAL_SENTENCES = [
 ]
 
 # Short Hinglish phrases for negation templates
+# Real-life events that carry a mood without using emotion words.
+# Each group: (sentences, moods those events usually cause)
+EVENTS = [
+    ([
+        "I met with an accident on the way", "my car crashed into a truck",
+        "I got into a road accident", "my bike slipped and I fell on the road",
+        "a car hit my scooter", "I was in a car crash today",
+        "mera accident ho gaya", "meri car crash ho gayi",
+        "raste mein accident ho gaya", "bike se gir gaya aur chot lag gayi",
+        "meri scooty ko ek gaadi ne takkar maar di",
+    ], ["anxious", "sad"]),
+    ([
+        "my car got badly damaged", "my phone got stolen", "I lost my wallet",
+        "someone broke into our house", "my laptop stopped working before the submission",
+        "mera phone chori ho gaya", "mera purse kho gaya",
+        "gaadi ka bahut nuksaan ho gaya", "ghar mein chori ho gayi",
+    ], ["sad", "stressed"]),
+    ([
+        "I got fired from my job", "I failed my exam", "I didn't get selected",
+        "my startup shut down", "meri job chali gayi",
+        "main exam mein fail ho gaya", "mera selection nahi hua",
+    ], ["sad", "anxious"]),
+    ([
+        "my grandfather passed away", "my dog died this morning",
+        "we lost my uncle last night", "dadi ki death ho gayi",
+        "mere dost ki maut ho gayi", "hamara pet mar gaya",
+    ], ["sad"]),
+    ([
+        "my mom is admitted in the hospital", "the doctor said my reports are not good",
+        "my father had a heart attack", "papa hospital mein admit hain",
+        "maa ki tabiyat bahut kharab hai", "doctor ne kaha surgery karni padegi",
+    ], ["anxious", "sad"]),
+    ([
+        "my boss yelled at me in front of everyone", "someone cheated me out of my money",
+        "my neighbour keeps playing loud music at night", "the shopkeeper misbehaved with me",
+        "boss sabke saamne chilla raha tha", "kisi ne mere paise maar liye",
+        "padosi raat bhar gaana bajate hain", "usne meri gaadi thok di aur sorry bhi nahi bola",
+    ], ["angry"]),
+    ([
+        "my best friend betrayed me", "my partner cheated on me",
+        "my friend shared my secret with everyone", "usne mujhe dhokha diya",
+        "mere best friend ne meri baat sabko bata di",
+    ], ["angry", "sad"]),
+    ([
+        "I ran a marathon and my legs are dead", "after the gym my whole body hurts",
+        "I travelled for twelve hours straight", "I worked the night shift",
+        "pura din chal chal ke pair dard kar rahe hain",
+        "raat bhar travel kiya", "double shift karke aaya hoon",
+    ], ["tired"]),
+    ([
+        "I got my dream job", "I got selected for the internship",
+        "my sister had a baby girl", "I got engaged yesterday",
+        "my team won the final", "mera selection ho gaya",
+        "meri sagai ho gayi", "hamari team final jeet gayi",
+        "papa ne nayi bike dila di",
+    ], ["happy"]),
+    ([
+        "I have five reports pending", "I have back to back meetings all day",
+        "the project is due tomorrow and half is left",
+        "kal tak project submit karna hai", "teen exams ek hi hafte mein hain",
+        "office mein aaj saare kaam ek saath aa gaye",
+    ], ["stressed"]),
+]
+
+# Neutral openers before an event, so "party" alone doesn't decide the mood
+EVENT_CONTEXTS = [
+    "I went to a birthday party", "I was going to the office",
+    "I was coming back from college", "I was driving home",
+    "we went on a family trip", "I went to my friend's wedding",
+    "main dost ki birthday party mein gaya tha", "main office ja raha tha",
+    "hum trip pe gaye the", "main college se wapas aa rahi thi",
+    "main shaadi mein gaya tha",
+]
+
+EVENT_CONNECTORS = [
+    " and on the way ", ", but ", " and then ", " aur raste mein ",
+    " lekin ", " par wahan ", ". Then ", " aur wahan ",
+]
+
+EVENT_RELIEF = [
+    " but I am safe", " but nobody got hurt", " lekin main safe hoon",
+    " par main theek hoon", ", thank god I am okay",
+]
+
 HI_NEGATED = {
     "sad": ["udaas nahi hoon", "dukhi nahi hoon"],
     "angry": ["gussa nahi hoon", "naraz nahi hoon"],
@@ -357,6 +442,22 @@ def negation_sentence(rng, negated, actual):
 # BUILD
 # ============================================================
 
+def event_sentence(rng, events, moods):
+    event = pick(rng, events)
+    templates = [
+        lambda: event,
+        lambda: pick(rng, PREFIXES) + event,
+        lambda: pick(rng, EVENT_CONTEXTS) + pick(rng, EVENT_CONNECTORS) + event,
+    ]
+    # Being safe after a scary event doesn't cancel the scare
+    if "anxious" in moods:
+        templates.append(
+            lambda: pick(rng, EVENT_CONTEXTS) + pick(rng, EVENT_CONNECTORS)
+            + event + pick(rng, EVENT_RELIEF)
+        )
+    return pick(rng, templates)()
+
+
 def make_row(text, labels):
     row = {"text": text.strip()}
     for mood in MOODS:
@@ -390,6 +491,10 @@ def generate_rows(rng):
                 continue
             for _ in range(NEGATIONS_PER_COMBO):
                 rows.append(make_row(negation_sentence(rng, negated, actual), [actual]))
+
+    for events, moods in EVENTS:
+        for _ in range(EVENTS_PER_GROUP):
+            rows.append(make_row(event_sentence(rng, events, moods), moods))
 
     for _ in range(NEUTRAL_COUNT):
         rows.append(make_row(pick(rng, PREFIXES) + pick(rng, NEUTRAL_SENTENCES), ["neutral"]))
