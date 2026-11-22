@@ -99,6 +99,7 @@ USER_REPORTED = [
     ("aaj hmare ghr m shade h lakin dulhan bhag gyi", {"angry", "sad"}),
     ("meri dost ka accident ho gya tha lakin abhi wo thk h lakin bhut sare pese lg gye", {"sad", "anxious", "stressed"}),
     ("I have 1000 money mne shopping krli ab mere sare pese khtm hoge", {"stressed", "anxious"}),
+    ("meri or meri best friend ki ldai hogi kisi dusri dost n kra di misunderstanding ab merko smj ni aara m uses kese baat kru", {"sad", "angry"}),
 ]
 
 
