@@ -28,6 +28,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from mood_phrase_bank import (
+    DEVANAGARI, DOMAIN_EVENTS, EMOJIS, EXTRA_NEUTRAL, IDIOMS, QUESTIONS,
+)
+
 
 BASE_DIR = Path(__file__).resolve().parent
 AI_DIR = BASE_DIR / "app" / "ai"
@@ -49,6 +53,10 @@ NEGATIONS_PER_COMBO = 40
 NEUTRAL_COUNT = 450
 GOEMOTIONS_PER_MOOD = 350
 EVENTS_PER_GROUP = 45
+BANK_VARIANTS_PER_SENTENCE = 5
+CROSS_EVENT_COMBOS = 2000
+EMOJI_ROWS = 900
+TYPO_FRACTION = 0.15
 
 
 # ============================================================
@@ -571,6 +579,95 @@ def load_goemotions_rows(rng):
     return rows
 
 
+# ============================================================
+# PHRASE BANK (mood_phrase_bank.py)
+# ============================================================
+
+COMBO_CONNECTORS = [
+    " but ", " and ", ", aur ", " lekin ", ". Also ", ", par ", " and on top of that ",
+]
+
+DEVANAGARI_PREFIXES = ["", "", "आज ", "सच में ", "यार "]
+
+
+def bank_rows(rng):
+    rows = []
+
+    for moods, sentences in DOMAIN_EVENTS:
+        for _ in range(len(sentences) * BANK_VARIANTS_PER_SENTENCE):
+            rows.append(make_row(event_sentence(rng, sentences, moods), moods))
+
+    # Two unrelated events in one message: "got a raise but mom is in hospital"
+    for _ in range(CROSS_EVENT_COMBOS):
+        (moods_a, events_a), (moods_b, events_b) = rng.sample(DOMAIN_EVENTS, 2)
+        labels = sorted(set(moods_a) | set(moods_b))
+        if len(labels) > 3:
+            continue
+        text = pick(rng, events_a) + pick(rng, COMBO_CONNECTORS) + pick(rng, events_b)
+        rows.append(make_row(pick(rng, PREFIXES) + text, labels))
+
+    for mood, idioms in IDIOMS.items():
+        for idiom in idioms:
+            for _ in range(BANK_VARIANTS_PER_SENTENCE):
+                text = pick(rng, [
+                    idiom,
+                    pick(rng, PREFIXES) + idiom,
+                    f"{idiom} yaar",
+                    f"{pick(rng, EN_CLAUSES[mood])}, {idiom}",
+                    f"{pick(rng, HI_CLAUSES[mood])}, {idiom}",
+                ])
+                rows.append(make_row(text, [mood]))
+
+    for mood, sentences in DEVANAGARI.items():
+        for sentence in sentences:
+            for prefix in DEVANAGARI_PREFIXES:
+                rows.append(make_row(prefix + sentence, [mood]))
+
+    for mood, questions in QUESTIONS.items():
+        for question in questions:
+            for _ in range(BANK_VARIANTS_PER_SENTENCE):
+                text = pick(rng, PREFIXES) + question + pick(rng, ["?", "??", "", " yaar?"])
+                rows.append(make_row(text, [mood]))
+
+    for _ in range(EMOJI_ROWS):
+        mood = pick(rng, list(EMOJIS))
+        base = pick(rng, [
+            pick(rng, EN_CLAUSES[mood]), pick(rng, HI_CLAUSES[mood]),
+            pick(rng, IDIOMS[mood]), f"I feel {pick(rng, ADJECTIVES[mood])}",
+        ])
+        emoji = pick(rng, EMOJIS[mood]) * rng.randint(1, 3)
+        rows.append(make_row(f"{base} {emoji}", [mood]))
+
+    for sentence in EXTRA_NEUTRAL:
+        for _ in range(4):
+            rows.append(make_row(pick(rng, PREFIXES) + sentence, ["neutral"]))
+
+    return rows
+
+
+def add_typo(rng, text):
+    """One realistic typo in one word: dropped, doubled or swapped letter."""
+    words = text.split()
+    candidates = [i for i, w in enumerate(words) if len(w) > 3 and w.isalpha()]
+    if not candidates:
+        return text
+
+    i = pick(rng, candidates)
+    word = words[i]
+    pos = rng.randrange(1, len(word) - 1)
+    operation = pick(rng, ["drop", "double", "swap"])
+
+    if operation == "drop":
+        word = word[:pos] + word[pos + 1:]
+    elif operation == "double":
+        word = word[:pos] + word[pos] + word[pos:]
+    else:
+        word = word[:pos - 1] + word[pos] + word[pos - 1] + word[pos + 1:]
+
+    words[i] = word
+    return " ".join(words)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-goemotions", action="store_true")
@@ -578,7 +675,14 @@ def main():
 
     rng = random.Random(SEED)
 
-    rows = load_single_label_rows() + generate_rows(rng)
+    rows = load_single_label_rows() + generate_rows(rng) + bank_rows(rng)
+
+    # People make typos; teach the model the same sentence still means the same
+    typo_rows = []
+    for row in rng.sample(rows, int(len(rows) * TYPO_FRACTION)):
+        typo_rows.append({**row, "text": add_typo(rng, row["text"])})
+    rows += typo_rows
+
     if not args.no_goemotions:
         rows += load_goemotions_rows(rng)
 

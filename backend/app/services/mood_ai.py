@@ -66,6 +66,34 @@ SHORT_FORMS = {
 }
 
 
+EMOJI_WORDS = {
+    **dict.fromkeys(
+        ["😊", "😀", "😁", "😄", "😃", "🥳", "😍", "🥰", "🤩", "😇", "🙂", "❤️", "❤", "💖", "🎉", "👍", "😂", "🤣"],
+        "emojihappy",
+    ),
+    **dict.fromkeys(
+        ["😢", "😭", "💔", "😞", "😔", "☹️", "☹", "🙁", "🥺", "😿"],
+        "emojisad",
+    ),
+    **dict.fromkeys(
+        ["😡", "🤬", "😠", "👿", "💢", "😤"],
+        "emojiangry",
+    ),
+    **dict.fromkeys(
+        ["😴", "🥱", "😪", "💤"],
+        "emojitired",
+    ),
+    **dict.fromkeys(
+        ["😰", "😨", "😟", "😱", "😧", "😥", "😬"],
+        "emojianxious",
+    ),
+    **dict.fromkeys(
+        ["😩", "😫", "🤯", "😵", "😓"],
+        "emojistressed",
+    ),
+}
+
+
 def normalize_text(text: str) -> str:
     """
     Cleans common Hinglish/English short forms and small typos.
@@ -130,8 +158,14 @@ def normalize_text(text: str) -> str:
 
     text = " ".join(cleaned_words)
 
+    # Emojis carry mood, turn them into words before punctuation is removed
+    for emoji, word in EMOJI_WORDS.items():
+        text = text.replace(emoji, f" {word} ")
+
     # Remove unnecessary punctuation
-    text = re.sub(r"[^\w\s']", " ", text)
+    # (Devanagari range keeps Hindi matras: "मुझे" must not become "म झ";
+    # ।-॥ are the danda full stops, which are removed)
+    text = re.sub(r"[^\w\s'ऀ-ॣ०-ॿ]", " ", text)
 
     # Remove extra spaces
     text = re.sub(r"\s+", " ", text).strip()
