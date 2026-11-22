@@ -403,6 +403,17 @@ DOMAIN_EVENTS = [
         "dadaji ICU se bahar aa gaye",
     ]),
 
+    # ---------------- SHYNESS / SOCIAL NERVES ----------------
+    (["anxious"], [
+        "I'm getting shy", "I feel so shy around new people",
+        "I get nervous talking to strangers", "I felt awkward at the party",
+        "I'm too shy to ask questions in class", "I feel embarrassed in front of everyone",
+        "my crush looked at me and I got shy", "I couldn't speak in the meeting, I froze",
+        "mujhe sharam aa rahi hai", "naye logon se baat karne mein jhijhak hoti hai",
+        "sabke saamne bolne mein sharam aati hai", "class mein sawaal poochne mein darr lagta hai",
+        "main bahut sharmeeli hoon", "uske saamne main sharma gayi",
+    ]),
+
     # ---------------- SAFETY / FEAR ----------------
     (["anxious"], [
         "someone was following me on my way home", "a man threatened me with a knife",
