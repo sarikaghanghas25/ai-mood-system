@@ -1341,6 +1341,135 @@ body {
   }
 }
 
+/* ---------- Mood trend ---------- */
+
+.trend-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.trend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trend-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid #e8edfb;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff, #f6f8ff);
+  animation: rise 0.6s var(--ease-out) both;
+}
+
+.trend-chip:nth-child(2) { animation-delay: 0.06s; }
+.trend-chip:nth-child(3) { animation-delay: 0.12s; }
+.trend-chip:nth-child(4) { animation-delay: 0.18s; }
+
+.trend-chip small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trend-chip strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.trend-chip b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: white;
+  font-size: 11px;
+  background: #8a94b8;
+}
+
+.change-up strong { color: #16a34a; }
+.change-up b { background: #22c55e; }
+.change-down strong { color: #e0475b; }
+.change-down b { background: #ef7184; }
+
+.trend-range {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f1f4fb;
+}
+
+.trend-range button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.trend-range button.is-active {
+  color: #4236d8;
+  background: white;
+  box-shadow: 0 4px 10px rgba(60, 70, 140, 0.1);
+}
+
+.trend-container {
+  margin-top: 10px;
+}
+
+.trend-dot {
+  animation: pop 0.5s var(--ease-spring) both;
+}
+
+.trend-tooltip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 14px 34px rgba(40, 50, 110, 0.18);
+}
+
+.trend-tooltip > span {
+  font-size: 26px;
+}
+
+.trend-tooltip strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.trend-tooltip small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.trend-tooltip b {
+  margin-left: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: white;
+  background: linear-gradient(135deg, #4f6fff, #7659e9);
+  font-size: 11px;
+}
+
 /* ---------- Smart Mood Insights ---------- */
 
 .insight-card {

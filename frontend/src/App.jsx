@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -1154,6 +1155,214 @@ function AffirmationCard({ mood }) {
         </p>
       </div>
     </div>
+  );
+}
+
+/*
+ * Mood trend: a soft gradient wave of mood scores (1 = sad ... 5 = happy)
+ * with emoji points, an average line, summary chips and a range switch.
+ */
+const SCORE_EMOJI = { 1: "😔", 2: "😡", 3: "😴", 4: "😐", 5: "😊" };
+
+const TREND_RANGES = [
+  { key: 10, label: "Last 10" },
+  { key: 30, label: "Last 30" },
+  { key: 0, label: "All" },
+];
+
+const formatTrendDate = (value, withTime = false) => {
+  const date = parseServerDate(value);
+  if (!date) return String(value || "");
+
+  return date.toLocaleString([], {
+    day: "numeric",
+    month: "short",
+    ...(withTime ? { hour: "numeric", minute: "2-digit" } : {}),
+  });
+};
+
+function TrendTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+
+  const point = payload[0].payload;
+  const info = moodInfo(point.mood);
+
+  return (
+    <div className="trend-tooltip">
+      <span>{info.emoji}</span>
+      <div>
+        <strong>{info.label}</strong>
+        <small>{formatTrendDate(point.name, true)}</small>
+      </div>
+      <b>{point.score}/5</b>
+    </div>
+  );
+}
+
+// Point drawn as the mood's emoji on a white circle
+function EmojiDot({ cx, cy, payload, showEmoji }) {
+  if (cx == null || cy == null) return null;
+
+  if (!showEmoji) {
+    return <circle cx={cx} cy={cy} r={4} fill="#fff" stroke="#6654ed" strokeWidth={2} />;
+  }
+
+  return (
+    <g className="trend-dot">
+      <circle cx={cx} cy={cy} r={13} fill="#fff" stroke="#c9d3ff" strokeWidth={2} />
+      <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14">
+        {moodInfo(payload.mood).emoji}
+      </text>
+    </g>
+  );
+}
+
+function MoodTrendChart({ data }) {
+  const [range, setRange] = useState(10);
+
+  const shown = range ? data.slice(-range) : data;
+
+  const summary = useMemo(() => {
+    if (shown.length === 0) return null;
+
+    const average = shown.reduce((sum, point) => sum + point.score, 0) / shown.length;
+
+    const counts = {};
+    shown.forEach((point) => {
+      counts[point.mood] = (counts[point.mood] || 0) + 1;
+    });
+    const common = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+
+    const last = shown[shown.length - 1].score;
+    const previous = shown.length > 1 ? shown[shown.length - 2].score : last;
+
+    return { average, common, change: last - previous };
+  }, [shown]);
+
+  if (data.length === 0) {
+    return (
+      <EmptyState text="Your mood trend will appear after mood history is available." />
+    );
+  }
+
+  const changeText =
+    summary.change > 0
+      ? { arrow: "↑", text: "better than last time", key: "up" }
+      : summary.change < 0
+        ? { arrow: "↓", text: "lower than last time", key: "down" }
+        : { arrow: "→", text: "same as last time", key: "stable" };
+
+  return (
+    <>
+      <div className="trend-toolbar">
+        <div className="trend-chips">
+          <div className="trend-chip">
+            <small>Average</small>
+            <strong>
+              {SCORE_EMOJI[Math.round(summary.average)]}{" "}
+              {summary.average.toFixed(1)}/5
+            </strong>
+          </div>
+
+          <div className="trend-chip">
+            <small>Most often</small>
+            <strong>
+              {moodInfo(summary.common).emoji} {moodInfo(summary.common).label}
+            </strong>
+          </div>
+
+          <div className={`trend-chip change-${changeText.key}`}>
+            <small>Latest</small>
+            <strong>
+              <b>{changeText.arrow}</b> {changeText.text}
+            </strong>
+          </div>
+
+          <div className="trend-chip">
+            <small>Check-ins</small>
+            <strong>{shown.length}</strong>
+          </div>
+        </div>
+
+        <div className="trend-range" role="radiogroup" aria-label="Range">
+          {TREND_RANGES.map((option) => (
+            <button
+              type="button"
+              key={option.key}
+              role="radio"
+              aria-checked={range === option.key}
+              className={range === option.key ? "is-active" : ""}
+              onClick={() => setRange(option.key)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="chart-container trend-container">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={shown} margin={{ top: 22, right: 22, left: 0, bottom: 5 }}>
+            <defs>
+              <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6c7dff" stopOpacity={0.45} />
+                <stop offset="100%" stopColor="#6c7dff" stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#4f6fff" />
+                <stop offset="100%" stopColor="#9b76ec" />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid strokeDasharray="4 6" vertical={false} stroke="#e7ebf6" />
+
+            <XAxis
+              dataKey="name"
+              tickFormatter={(value) => formatTrendDate(value)}
+              tick={{ fill: "#8a94b8", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              minTickGap={24}
+            />
+
+            <YAxis
+              domain={[1, 5]}
+              ticks={[1, 2, 3, 4, 5]}
+              tickFormatter={(value) => SCORE_EMOJI[value] || value}
+              tick={{ fontSize: 16 }}
+              axisLine={false}
+              tickLine={false}
+              width={38}
+            />
+
+            <ReferenceLine
+              y={summary.average}
+              stroke="#b9a7f5"
+              strokeDasharray="6 6"
+              label={{
+                value: "avg",
+                position: "right",
+                fill: "#9b86e8",
+                fontSize: 11,
+              }}
+            />
+
+            <Tooltip content={<TrendTooltip />} cursor={{ stroke: "#c9d3ff", strokeWidth: 2 }} />
+
+            <Area
+              type="monotone"
+              dataKey="score"
+              stroke="url(#trendStroke)"
+              strokeWidth={4}
+              fill="url(#trendFill)"
+              animationDuration={1400}
+              dot={<EmojiDot showEmoji={shown.length <= 20} />}
+              activeDot={{ r: 9, fill: "#6654ed", stroke: "#fff", strokeWidth: 3 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </>
   );
 }
 
@@ -4154,86 +4363,9 @@ function App() {
                   </div>
                 </div>
 
-                <div className="chart-container trend-container">
-                  {trendData.length >
-                  0 ? (
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <LineChart
-                        data={
-                          trendData
-                        }
-                        margin={{
-                          top: 15,
-                          right: 20,
-                          left: 0,
-                          bottom: 5,
-                        }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                        />
-
-                        <XAxis
-                          dataKey="name"
-                          tickFormatter={(
-                            value
-                          ) => {
-                            try {
-                              return new Date(
-                                value
-                              ).toLocaleDateString(
-                                [],
-                                {
-                                  month:
-                                    "short",
-                                  day:
-                                    "numeric",
-                                }
-                              );
-                            } catch {
-                              return value;
-                            }
-                          }}
-                        />
-
-                        <YAxis
-                          domain={[
-                            1,
-                            5,
-                          ]}
-                        />
-
-                        <Tooltip />
-
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#4f6fff"
-                          strokeWidth={
-                            4
-                          }
-                          dot={{
-                            r: 5,
-                            fill:
-                              "#ffffff",
-                            strokeWidth:
-                              3,
-                            stroke:
-                              "#4f6fff",
-                          }}
-                          activeDot={{
-                            r: 8,
-                          }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <EmptyState text="Your mood trend will appear after mood history is available." />
-                  )}
-                </div>
+                <MoodTrendChart
+                  data={trendData}
+                />
               </section>
 
               {/* =================================================
