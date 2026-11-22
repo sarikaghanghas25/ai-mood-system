@@ -9,6 +9,32 @@ Do NOT copy sentences from evaluate_mood_model.py into this file,
 that would make the evaluation score meaningless.
 """
 
+# Kind acts; reused by the builder for "helped them, but they betrayed me"
+KINDNESS = [
+        "I donated blood today and it saved a patient", "I helped an old man cross the road",
+        "I saved a drowning kid at the beach", "I took an accident victim to the hospital in time",
+        "I volunteered at the old age home today", "I fed stray dogs in my area",
+        "I donated my old clothes to an orphanage", "I taught poor kids for free today",
+        "I gave my seat to a pregnant lady and she blessed me",
+        "the patient I donated blood to is out of danger now",
+        "maine aaj blood donate kiya aur ek patient bach gaya",
+        "maine ek aadmi ki jaan bachayi", "accident wale ko time pe hospital le gaya aur wo bach gaya",
+        "aaj anaath ashram mein bachchon ke saath time bitaya",
+        "maine ek budhi amma ki madad ki", "aaj garib bachchon ko padhaya",
+        "maine apna khoon dekar kisi ki jaan bacha li", "aaj kisi ki madad karke bahut sukoon mila",
+]
+
+# What happens after a kind act goes wrong. Combined with KINDNESS as
+# "<kind act> but <this>" and labelled angry + sad only, so "I helped"
+# doesn't make the whole sentence happy.
+BETRAYED_AFTER_HELP = [
+    "he took all the credit", "she blamed me for it", "he got me caught instead",
+    "she says she never borrowed the money", "he reported me to the teacher",
+    "nobody even said thank you", "they made fun of me for it",
+    "usne mujhe hi fasa diya", "ulta mujhe hi daant padi", "usne shukriya tak nahi bola",
+    "wahi ab mukar gaya", "usne meri hi shikayat kar di", "sabne mujhe hi galat bataya",
+]
+
 # (moods, sentences): things that happen, mostly without emotion words
 DOMAIN_EVENTS = [
     # ---------------- WORK ----------------
@@ -242,19 +268,7 @@ DOMAIN_EVENTS = [
 
     # ---------------- KINDNESS / PROUD MOMENTS ----------------
     # Helping someone feels good, even when the place (hospital, accident) sounds bad
-    (["happy"], [
-        "I donated blood today and it saved a patient", "I helped an old man cross the road",
-        "I saved a drowning kid at the beach", "I took an accident victim to the hospital in time",
-        "I volunteered at the old age home today", "I fed stray dogs in my area",
-        "I donated my old clothes to an orphanage", "I taught poor kids for free today",
-        "I gave my seat to a pregnant lady and she blessed me",
-        "the patient I donated blood to is out of danger now",
-        "maine aaj blood donate kiya aur ek patient bach gaya",
-        "maine ek aadmi ki jaan bachayi", "accident wale ko time pe hospital le gaya aur wo bach gaya",
-        "aaj anaath ashram mein bachchon ke saath time bitaya",
-        "maine ek budhi amma ki madad ki", "aaj garib bachchon ko padhaya",
-        "maine apna khoon dekar kisi ki jaan bacha li", "aaj kisi ki madad karke bahut sukoon mila",
-    ]),
+    (["happy"], KINDNESS),
 
     # ---------------- GOOD NEWS AT THE HOSPITAL ----------------
     (["happy"], [

@@ -29,7 +29,8 @@ from pathlib import Path
 import pandas as pd
 
 from mood_phrase_bank import (
-    DEVANAGARI, DOMAIN_EVENTS, EMOJIS, EXTRA_NEUTRAL, IDIOMS, QUESTIONS,
+    BETRAYED_AFTER_HELP, DEVANAGARI, DOMAIN_EVENTS, EMOJIS, EXTRA_NEUTRAL,
+    IDIOMS, KINDNESS, QUESTIONS,
 )
 
 
@@ -55,6 +56,7 @@ GOEMOTIONS_PER_MOOD = 350
 EVENTS_PER_GROUP = 45
 BANK_VARIANTS_PER_SENTENCE = 5
 CROSS_EVENT_COMBOS = 2000
+BETRAYED_AFTER_HELP_ROWS = 200
 EMOJI_ROWS = 900
 TYPO_FRACTION = 0.15
 
@@ -605,6 +607,18 @@ def bank_rows(rng):
             continue
         text = pick(rng, events_a) + pick(rng, COMBO_CONNECTORS) + pick(rng, events_b)
         rows.append(make_row(pick(rng, PREFIXES) + text, labels))
+
+    # "I helped them, but they blamed me" is angry + sad, not happy
+    for _ in range(BETRAYED_AFTER_HELP_ROWS):
+        text = (
+            pick(rng, PREFIXES) + pick(rng, KINDNESS)
+            + pick(rng, [" but ", " lekin ", " par ", ", aur phir "])
+            + pick(rng, BETRAYED_AFTER_HELP)
+        )
+        rows.append(make_row(text, ["angry", "sad"]))
+
+        # Same number of plain kind acts, so "helped" alone stays happy
+        rows.append(make_row(pick(rng, PREFIXES) + pick(rng, KINDNESS), ["happy"]))
 
     for mood, idioms in IDIOMS.items():
         for idiom in idioms:

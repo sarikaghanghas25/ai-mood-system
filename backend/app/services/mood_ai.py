@@ -27,6 +27,9 @@ MODEL_PATH = (
 
 _model = None
 
+# ML probability above which the ML model's mood beats the keyword rules
+ML_TRUST_THRESHOLD = 0.6
+
 
 # ============================================================
 # TEXT NORMALIZATION
@@ -1450,45 +1453,56 @@ def detect_mood_with_ai(text: str):
     # --------------------------------------------------------
     # Final mood priority
     #
-    # Explicit emotion
+    # Safety intents (self harm, violence)
+    # Explicit emotion ("i am happy")
+    # ML model, when it is confident
     # Situation
     # Intent
     # Detailed emotion
     # ML
+    #
+    # The keyword rules can't read context ("exam" always meant
+    # stressed, even in "my friend framed me in the exam"), so a
+    # confident ML prediction now wins over them.
     # --------------------------------------------------------
 
-    if explicit_mood:
+    safety_mood = (
+        intent_mood
+        if intent in ("self_harm", "violence")
+        else None
+    )
+
+    ml_is_confident = (
+        ml_mood != "neutral"
+        and ml_confidence >= ML_TRUST_THRESHOLD
+    )
+
+    if safety_mood:
+        final_mood = safety_mood
+        confidence = 0.91
+
+    elif explicit_mood:
         final_mood = explicit_mood
+        confidence = 0.96
+
+    elif ml_is_confident:
+        final_mood = ml_mood
+        confidence = ml_confidence
 
     elif situation_mood:
         final_mood = situation_mood
-
-    elif intent_mood:
-        final_mood = intent_mood
-
-    elif detailed_mood:
-        final_mood = detailed_mood
-
-    else:
-        final_mood = ml_mood
-
-    # --------------------------------------------------------
-    # Confidence
-    # --------------------------------------------------------
-
-    if explicit_mood:
-        confidence = 0.96
-
-    elif situation_mood:
         confidence = 0.93
 
     elif intent_mood:
+        final_mood = intent_mood
         confidence = 0.91
 
     elif detailed_mood:
+        final_mood = detailed_mood
         confidence = 0.88
 
     else:
+        final_mood = ml_mood
         confidence = ml_confidence
 
     # --------------------------------------------------------
