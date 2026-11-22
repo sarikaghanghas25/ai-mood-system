@@ -57,6 +57,9 @@ MULTILABEL_MODEL_PATH = (
 
 MAX_MOODS = 3
 
+# An emotion at or above this probability is never overruled by neutral
+STRONG_EMOTION = 0.75
+
 EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 _encoders = {}
@@ -156,7 +159,13 @@ def select_moods(probabilities: dict, thresholds: dict):
         default=0.0,
     )
 
-    if neutral >= thresholds.get("neutral", 0.5) and neutral > strongest_emotion:
+    # A clearly felt emotion still wins over a near-tied neutral
+    # ("getting shy": neutral 0.92 vs sad 0.88 should not be neutral)
+    if (
+        neutral >= thresholds.get("neutral", 0.5)
+        and neutral > strongest_emotion
+        and strongest_emotion < STRONG_EMOTION
+    ):
         return ["neutral"]
 
     detected = sorted(

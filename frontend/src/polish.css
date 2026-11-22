@@ -538,9 +538,11 @@ body {
     border-color 0.45s ease;
 }
 
+/* "none", not "0 0": any translate value turns the card into the
+   containing block for fixed-position children */
 .reveal-ready .reveal.in-view {
   opacity: 1;
-  translate: 0 0;
+  translate: none;
 }
 
 .reveal-ready .stats-grid .reveal:nth-child(2) { transition-delay: 0.07s; }
@@ -1338,6 +1340,351 @@ body {
 
   .calendar-date {
     font-size: 8px;
+  }
+}
+
+/* ---------- Your week story ---------- */
+
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.story-button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 14px;
+  color: white;
+  background: linear-gradient(135deg, #f08fb1, #9b76ec, #5481f7);
+  background-size: 200% 200%;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(155, 118, 236, 0.35);
+  animation: hue-flow 6s ease-in-out infinite alternate;
+  transition: transform 0.25s var(--ease-spring);
+}
+
+.story-button:hover {
+  transform: translateY(-2px) scale(1.04);
+}
+
+.story-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 18, 40, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fade-in 0.3s ease both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.story-card {
+  position: relative;
+  width: min(380px, 100%);
+  height: min(640px, calc(100vh - 40px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 40px 28px;
+  border-radius: 28px;
+  color: white;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(160deg, #5481f7, #6654ed 55%, #9b76ec);
+  animation: pop 0.5s var(--ease-spring) both;
+}
+
+/* Story colours follow the week's main mood */
+.story-happy { background: linear-gradient(160deg, #f7b955, #f08fb1 60%, #9b76ec); }
+.story-sad { background: linear-gradient(160deg, #3b6fd8, #5b8def 55%, #8db3f5); }
+.story-angry { background: linear-gradient(160deg, #0f8f7e, #23a594 55%, #5cc5b0); }
+.story-tired { background: linear-gradient(160deg, #3b3f86, #6b6fb8 55%, #9a9ed6); }
+.story-anxious { background: linear-gradient(160deg, #1f8fb3, #3fa9c9 55%, #7cc8dd); }
+.story-stressed { background: linear-gradient(160deg, #2e8b57, #46a86c 55%, #7cc795); }
+
+.story-card::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.22), transparent 40%);
+  animation: spin-slow 20s linear infinite;
+  pointer-events: none;
+}
+
+.story-progress {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  gap: 4px;
+}
+
+.story-progress i {
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+}
+
+.story-progress em {
+  display: block;
+  height: 100%;
+  background: white;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.story-progress em.is-done {
+  transform: scaleX(1);
+}
+
+.story-progress em.is-running {
+  animation: grow linear both;
+}
+
+.story-close {
+  position: absolute;
+  top: 26px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.story-slide {
+  position: relative;
+  animation: rise 0.6s var(--ease-out) both;
+}
+
+.story-big {
+  margin-bottom: 18px;
+  font-size: 96px;
+  font-weight: 800;
+  line-height: 1;
+  animation: pop 0.7s var(--ease-spring) 0.1s both, float 4s ease-in-out 1s infinite;
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.story-slide h3 {
+  margin: 0 0 10px;
+  font-size: 26px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.story-slide p {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.9;
+}
+
+.story-hint {
+  position: absolute;
+  bottom: 18px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ---------- Achievements ---------- */
+
+.achievement-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 16px;
+  color: #7c4a03;
+  background: linear-gradient(135deg, #fff6d8, #ffe7a8);
+}
+
+.achievement-count strong {
+  font-size: 20px;
+}
+
+.achievement-count small {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 12px 14px;
+  overflow: hidden;
+  border: 1px solid #edf0f8;
+  border-radius: 18px;
+  text-align: center;
+  background: #f8f9fd;
+  animation: pop 0.5s var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 0.05s);
+  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease;
+}
+
+.badge-icon {
+  font-size: 34px;
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.badge strong {
+  color: #8a94b8;
+  font-size: 13px;
+}
+
+.badge small {
+  color: #a3abc8;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.badge-progress {
+  display: block;
+  width: 80%;
+  height: 5px;
+  margin-top: 6px;
+  border-radius: 5px;
+  background: #e6eaf5;
+  overflow: hidden;
+}
+
+.badge-progress em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8fa2ff, #9b76ec);
+}
+
+.badge-count {
+  font-weight: 700;
+}
+
+.badge.is-unlocked {
+  border-color: #ffe2a0;
+  background: linear-gradient(160deg, #fffdf5, #fff4d6);
+  box-shadow: 0 10px 22px rgba(240, 180, 60, 0.15);
+}
+
+.badge.is-unlocked .badge-icon {
+  filter: none;
+  opacity: 1;
+  animation: float 4s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.3s);
+}
+
+.badge.is-unlocked strong {
+  color: #7c4a03;
+}
+
+.badge.is-unlocked small {
+  color: #a5783a;
+}
+
+/* Shine passing over earned badges */
+.badge.is-unlocked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.7) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: badge-shine 5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.4s);
+  pointer-events: none;
+}
+
+@keyframes badge-shine {
+  0%, 70% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+.badge.is-unlocked:hover {
+  transform: translateY(-4px) rotate(-1.5deg);
+  box-shadow: 0 16px 30px rgba(240, 180, 60, 0.25);
+}
+
+.achievement-toast {
+  position: fixed;
+  top: 84px;
+  left: 50%;
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px 12px 14px;
+  border-radius: 18px;
+  color: #7c4a03;
+  background: linear-gradient(135deg, #fffbea, #ffe7a8);
+  box-shadow: 0 18px 40px rgba(160, 110, 20, 0.3);
+  animation: toast-in 0.7s var(--ease-spring) both;
+}
+
+.achievement-toast > span {
+  font-size: 34px;
+  animation: pop 0.6s var(--ease-spring) 0.2s both;
+}
+
+.achievement-toast small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.achievement-toast strong {
+  font-size: 15px;
+}
+
+.achievement-toast em {
+  margin-left: 6px;
+  font-size: 11px;
+  font-style: normal;
+  opacity: 0.8;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -30px) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@media (max-width: 560px) {
+  .calendar-actions {
+    flex-direction: column-reverse;
+    align-items: flex-end;
+  }
+
+  .badge-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

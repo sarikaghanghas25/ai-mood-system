@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Area,
   AreaChart,
@@ -948,20 +949,47 @@ const parseServerDate = (value) => {
 const dayKey = (date) =>
   `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 
-function MoodCalendar({ history }) {
-  const { days, streak, checkedDays } = useMemo(() => {
-    const byDay = {};
+// { "2026-11-22": { sad: 2, happy: 1 }, ... } in local days
+const moodsByDay = (history) => {
+  const byDay = {};
 
-    (history || []).forEach((item) => {
-      const date = parseServerDate(item.created_at || item.timestamp || item.date);
-      if (!date) return;
+  (history || []).forEach((item) => {
+    const date = parseServerDate(item.created_at || item.timestamp || item.date);
+    if (!date) return;
 
-      const key = dayKey(date);
-      byDay[key] = byDay[key] || {};
-      historyMoods(item).forEach((mood) => {
-        byDay[key][mood] = (byDay[key][mood] || 0) + 1;
-      });
+    const key = dayKey(date);
+    byDay[key] = byDay[key] || {};
+    historyMoods(item).forEach((mood) => {
+      byDay[key][mood] = (byDay[key][mood] || 0) + 1;
     });
+  });
+
+  return byDay;
+};
+
+// Consecutive days with a check-in, ending today (or yesterday, so the
+// streak isn't lost before today's check-in)
+const currentStreak = (byDay) => {
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  if (!byDay[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
+
+  let count = 0;
+  while (byDay[dayKey(cursor)]) {
+    count += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return count;
+};
+
+function MoodCalendar({ history }) {
+  const [storyOpen, setStoryOpen] = useState(false);
+  const closeStory = useCallback(() => setStoryOpen(false), []);
+
+  const { days, streak, checkedDays } = useMemo(() => {
+    const byDay = moodsByDay(history);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -989,19 +1017,9 @@ function MoodCalendar({ history }) {
       };
     });
 
-    // Streak: consecutive days with a check-in, ending today
-    // (or yesterday, so it isn't lost before today's check-in)
-    let count = 0;
-    const cursor = new Date(today);
-    if (!byDay[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
-    while (byDay[dayKey(cursor)]) {
-      count += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-
     return {
       days: cells,
-      streak: count,
+      streak: currentStreak(byDay),
       checkedDays: cells.filter((cell) => cell.counts).length,
     };
   }, [history]);
@@ -1015,12 +1033,29 @@ function MoodCalendar({ history }) {
           <p>How you've felt over the last {CALENDAR_WEEKS} weeks.</p>
         </div>
 
-        <div className={`streak-badge ${streak > 0 ? "is-active" : ""}`}>
-          <span>🔥</span>
-          <strong>{streak}</strong>
-          <small>day streak</small>
+        <div className="calendar-actions">
+          <button
+            type="button"
+            className="story-button"
+            onClick={() => setStoryOpen(true)}
+          >
+            ✨ Your week
+          </button>
+
+          <div className={`streak-badge ${streak > 0 ? "is-active" : ""}`}>
+            <span>🔥</span>
+            <strong>{streak}</strong>
+            <small>day streak</small>
+          </div>
         </div>
       </div>
+
+      {/* On <body> so the full-screen story isn't trapped inside this card */}
+      {storyOpen &&
+        createPortal(
+          <WeeklyStory history={history} onClose={closeStory} />,
+          document.body
+        )}
 
       <div className="calendar-grid">
         {WEEKDAYS.map((day) => (
@@ -1363,6 +1398,342 @@ function MoodTrendChart({ data }) {
         </ResponsiveContainer>
       </div>
     </>
+  );
+}
+
+/*
+ * Achievements earned from mood history. A toast pops up the first time
+ * a badge unlocks (unlocked badges are remembered per browser).
+ */
+const MOOD_SCORE = { sad: 1, angry: 2, stressed: 2, anxious: 2, tired: 3, neutral: 4, happy: 5 };
+
+// Longest run of consecutive days with a check-in
+const longestStreak = (byDay) => {
+  const days = Object.keys(byDay)
+    .map((key) => {
+      const [year, month, day] = key.split("-").map(Number);
+      return new Date(year, month - 1, day).getTime();
+    })
+    .sort((a, b) => a - b);
+
+  let best = 0;
+  let run = 0;
+  let previous = null;
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  days.forEach((time) => {
+    // Rounded so daylight-saving shifts still count as one day apart
+    run = previous !== null && Math.round((time - previous) / oneDay) === 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+    previous = time;
+  });
+
+  return best;
+};
+
+const badgeList = (history) => {
+  const byDay = moodsByDay(history);
+  const moods = (history || []).flatMap(historyMoods);
+  const hours = (history || [])
+    .map((item) => parseServerDate(item.created_at || item.timestamp || item.date))
+    .filter(Boolean)
+    .map((date) => date.getHours());
+
+  const total = (history || []).length;
+  const bestStreak = longestStreak(byDay);
+
+  return [
+    { key: "first", icon: "🌱", title: "First Step", text: "Your first check-in", goal: 1, value: total },
+    { key: "ten", icon: "🔟", title: "Getting Started", text: "10 check-ins", goal: 10, value: total },
+    { key: "fifty", icon: "💯", title: "Committed", text: "50 check-ins", goal: 50, value: total },
+    { key: "fire", icon: "🔥", title: "On Fire", text: "3-day streak", goal: 3, value: bestStreak },
+    { key: "week", icon: "🏆", title: "Week Warrior", text: "7-day streak", goal: 7, value: bestStreak },
+    { key: "explorer", icon: "🌈", title: "Feelings Explorer", text: "Felt 5 different moods", goal: 5, value: new Set(moods).size },
+    { key: "sunshine", icon: "☀️", title: "Sunshine", text: "10 happy moments", goal: 10, value: moods.filter((mood) => mood === "happy").length },
+    { key: "owl", icon: "🌙", title: "Night Owl", text: "Checked in after 10 PM", goal: 1, value: hours.filter((hour) => hour >= 22 || hour < 4).length },
+    { key: "bird", icon: "🐦", title: "Early Bird", text: "Checked in before 7 AM", goal: 1, value: hours.filter((hour) => hour >= 4 && hour < 7).length },
+  ].map((badge) => ({ ...badge, unlocked: badge.value >= badge.goal }));
+};
+
+function Achievements({ history }) {
+  const badges = useMemo(() => badgeList(history), [history]);
+  const unlockedCount = badges.filter((badge) => badge.unlocked).length;
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    // Wait for history; with none, nothing is unlocked anyway
+    if (!history?.length) return undefined;
+
+    const unlocked = badges.filter((badge) => badge.unlocked).map((badge) => badge.key);
+
+    let seen = null;
+    try {
+      seen = JSON.parse(localStorage.getItem("achievements_seen") || "null");
+    } catch {
+      seen = null;
+    }
+
+    const save = () => {
+      try {
+        localStorage.setItem("achievements_seen", JSON.stringify(unlocked));
+      } catch {
+        // Private mode etc.
+      }
+    };
+
+    // First visit: remember what's already earned without a flood of toasts
+    if (!Array.isArray(seen)) {
+      save();
+      return undefined;
+    }
+
+    const fresh = badges.filter((badge) => badge.unlocked && !seen.includes(badge.key));
+    if (fresh.length === 0) return undefined;
+
+    save();
+    setToast({ badge: fresh[0], more: fresh.length - 1 });
+
+    const timer = setTimeout(() => setToast(null), 4500);
+    return () => clearTimeout(timer);
+  }, [badges, history]);
+
+  return (
+    <section className="chart-card achievements" id="achievements">
+      <div className="section-heading">
+        <div>
+          <span>REWARDS</span>
+          <h2>Achievements</h2>
+          <p>Little wins for taking care of yourself.</p>
+        </div>
+
+        <div className="achievement-count">
+          <strong>
+            {unlockedCount}/{badges.length}
+          </strong>
+          <small>unlocked</small>
+        </div>
+      </div>
+
+      <div className="badge-grid">
+        {badges.map((badge, index) => (
+          <div
+            key={badge.key}
+            className={`badge ${badge.unlocked ? "is-unlocked" : ""}`}
+            style={{ "--i": index }}
+            title={badge.text}
+          >
+            <span className="badge-icon">{badge.icon}</span>
+            <strong>{badge.title}</strong>
+            <small>{badge.text}</small>
+
+            {!badge.unlocked && (
+              <i className="badge-progress">
+                <em style={{ width: `${Math.min((badge.value / badge.goal) * 100, 100)}%` }} />
+              </i>
+            )}
+
+            {!badge.unlocked && badge.goal > 1 && (
+              <small className="badge-count">
+                {Math.min(badge.value, badge.goal)}/{badge.goal}
+              </small>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Rendered on <body> so no animated card can trap the fixed popup */}
+      {toast &&
+        createPortal(
+          <div className="achievement-toast" role="status">
+            <span>{toast.badge.icon}</span>
+            <div>
+              <small>Achievement unlocked!</small>
+              <strong>{toast.badge.title}</strong>
+              {toast.more > 0 && <em>+{toast.more} more</em>}
+            </div>
+          </div>,
+          document.body
+        )}
+    </section>
+  );
+}
+
+/*
+ * "Your week" story: full-screen slides like Instagram stories, built from
+ * the last 7 days. Advances by itself; tap right/left to move, Esc to close.
+ */
+const STORY_SECONDS = 4;
+
+const weekSummary = (history) => {
+  const byDay = moodsByDay(history);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - index));
+    return { date, counts: byDay[dayKey(date)] || null };
+  });
+
+  const totals = {};
+  let checkIns = 0;
+  let brightest = null;
+
+  days.forEach((day) => {
+    if (!day.counts) return;
+
+    let scoreSum = 0;
+    let entries = 0;
+
+    Object.entries(day.counts).forEach(([mood, count]) => {
+      totals[mood] = (totals[mood] || 0) + count;
+      checkIns += count;
+      scoreSum += (MOOD_SCORE[mood] ?? 4) * count;
+      entries += count;
+    });
+
+    const average = scoreSum / entries;
+    const top = Object.entries(day.counts).sort((a, b) => b[1] - a[1])[0][0];
+
+    if (!brightest || average > brightest.average) {
+      brightest = { date: day.date, average, top };
+    }
+  });
+
+  const topMood = Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+  return {
+    from: days[0].date,
+    to: days[6].date,
+    checkIns,
+    activeDays: days.filter((day) => day.counts).length,
+    topMood,
+    brightest,
+    streak: currentStreak(byDay),
+  };
+};
+
+function WeeklyStory({ history, onClose }) {
+  const summary = useMemo(() => weekSummary(history), [history]);
+  const [slide, setSlide] = useState(0);
+
+  const top = summary.topMood ? moodInfo(summary.topMood) : null;
+  const shortDate = (date) => date.toLocaleDateString([], { day: "numeric", month: "short" });
+
+  const slides = [
+    {
+      big: "✨",
+      title: "Your week in moods",
+      text: `${shortDate(summary.from)} – ${shortDate(summary.to)}`,
+    },
+    summary.checkIns > 0
+      ? {
+          big: <AnimatedValue value={summary.checkIns} />,
+          title: summary.checkIns === 1 ? "check-in this week" : "check-ins this week",
+          text: `You showed up on ${summary.activeDays} of 7 days 💪`,
+        }
+      : {
+          big: "🌱",
+          title: "A fresh week",
+          text: "No check-ins yet. Tell the app how you feel today!",
+        },
+    top && {
+      big: top.emoji,
+      title: `You mostly felt ${top.label}`,
+      text: "Every feeling is part of your story.",
+    },
+    summary.brightest && {
+      big: moodInfo(summary.brightest.top).emoji,
+      title: `Brightest day: ${summary.brightest.date.toLocaleDateString([], { weekday: "long" })}`,
+      text: "Remember what made it good 🌤️",
+    },
+    {
+      big: "🔥",
+      title: summary.streak > 0 ? `${summary.streak}-day streak` : "Start a streak",
+      text: summary.streak > 0 ? "Keep it going tomorrow!" : "Check in tomorrow to begin one.",
+    },
+    {
+      big: "💜",
+      title: (AFFIRMATIONS[summary.topMood] || AFFIRMATIONS.neutral)[0],
+      text: "See you next week.",
+    },
+  ].filter(Boolean);
+
+  const last = slides.length - 1;
+
+  // Move on by itself; close after the last slide
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (slide >= last) onClose();
+      else setSlide(slide + 1);
+    }, STORY_SECONDS * 1000);
+
+    return () => clearTimeout(timer);
+  }, [slide, last, onClose]);
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowRight") setSlide((value) => Math.min(value + 1, last));
+      if (event.key === "ArrowLeft") setSlide((value) => Math.max(value - 1, 0));
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [last, onClose]);
+
+  const current = slides[slide];
+
+  const onTap = (event) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const goBack = event.clientX - box.left < box.width / 3;
+
+    if (goBack) setSlide(Math.max(slide - 1, 0));
+    else if (slide >= last) onClose();
+    else setSlide(slide + 1);
+  };
+
+  return (
+    <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Your week in moods" onClick={onClose}>
+      <div
+        className={`story-card story-${summary.topMood || "neutral"}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onTap(event);
+        }}
+      >
+        <div className="story-progress">
+          {slides.map((_, index) => (
+            <i key={index}>
+              <em
+                className={index < slide ? "is-done" : index === slide ? "is-running" : ""}
+                style={{ animationDuration: `${STORY_SECONDS}s` }}
+              />
+            </i>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="story-close"
+          aria-label="Close"
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+        >
+          ✕
+        </button>
+
+        <div className="story-slide" key={slide}>
+          <div className="story-big">{current.big}</div>
+          <h3>{current.title}</h3>
+          <p>{current.text}</p>
+        </div>
+
+        <small className="story-hint">Tap to continue</small>
+      </div>
+    </div>
   );
 }
 
@@ -3867,6 +4238,8 @@ function App() {
               ================================================== */}
 
               <MoodCalendar history={history} />
+
+              <Achievements history={history} />
 
               {/* =================================================
                   SMART MOOD INSIGHTS
