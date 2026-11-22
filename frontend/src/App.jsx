@@ -326,6 +326,9 @@ function useRevealOnScroll() {
   }, []);
 }
 
+// Emojis that circle the hero planet
+const ORBIT_EMOJIS = ["😊", "😔", "😡", "😴", "😟", "😰"];
+
 // Placeholder that cycles through example feelings
 const ANALYZER_EXAMPLES = [
   "Tell me what's on your mind...",
@@ -2062,6 +2065,30 @@ function App() {
             <div className="hero-art">
               <div className="hero-sun">
                 {theme.sky}
+              </div>
+
+              {/* Mood emojis circling the planet */}
+              <div
+                className="hero-orbit"
+                aria-hidden="true"
+              >
+                {ORBIT_EMOJIS.map(
+                  (emoji, index) => (
+                    <span
+                      key={emoji}
+                      className="orbit-item"
+                      style={{
+                        "--angle": `${
+                          (360 /
+                            ORBIT_EMOJIS.length) *
+                          index
+                        }deg`,
+                      }}
+                    >
+                      <span>{emoji}</span>
+                    </span>
+                  )
+                )}
               </div>
 
               <div className="hero-planet">

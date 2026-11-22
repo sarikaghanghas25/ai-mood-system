@@ -196,6 +196,63 @@ body {
   animation: spin-slow 22s linear infinite;
 }
 
+/* Ring of mood emojis circling the planet (planet centre: right 176px, top 71px) */
+.hero-orbit {
+  --orbit-size: 144px;
+  position: absolute;
+  right: calc(176px - var(--orbit-size) / 2);
+  top: calc(71px - var(--orbit-size) / 2);
+  width: var(--orbit-size);
+  height: var(--orbit-size);
+  border: 1.5px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  animation:
+    pop 1s var(--ease-spring) 0.4s both,
+    spin-slow 18s linear 1.4s infinite;
+}
+
+.hero-planet {
+  z-index: 1;
+}
+
+.orbit-item {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  transform: rotate(var(--angle)) translateX(calc(var(--orbit-size) / 2)) rotate(calc(-1 * var(--angle)));
+}
+
+/* Spins the other way so each emoji stays upright while the ring turns */
+.orbit-item > span {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 6px 14px rgba(20, 30, 90, 0.22);
+  animation: spin-slow 18s linear 1.4s infinite reverse;
+  transition: transform 0.3s var(--ease-spring);
+}
+
+/* Hovering the art pauses the ring so an emoji can be looked at */
+.hero-art:hover .hero-orbit {
+  animation-play-state: running, paused;
+}
+
+.hero-art:hover .orbit-item > span {
+  animation-play-state: paused;
+}
+
+.orbit-item > span:hover {
+  transform: scale(1.35);
+}
+
 .hero-cloud {
   animation: cloud-drift 9s ease-in-out infinite alternate;
 }
