@@ -352,6 +352,215 @@ function useRotatingText(texts, interval = 3500) {
   return texts[index];
 }
 
+/*
+ * A short shower of mood emojis over the screen after each analysis:
+ * confetti for happy, raindrops for sad, rising bubbles for anxious...
+ */
+const BURST_STYLES = {
+  happy: { emojis: ["🎉", "✨", "💛", "😊", "🌟"], motion: "burst", count: 30 },
+  sad: { emojis: ["💧", "💙", "💧"], motion: "fall", count: 24 },
+  angry: { emojis: ["🍃", "🌿"], motion: "fall", count: 20 },
+  tired: { emojis: ["⭐", "🌙", "✨"], motion: "float", count: 18 },
+  anxious: { emojis: ["🫧"], motion: "rise", count: 24 },
+  stressed: { emojis: ["🌿", "🍃", "🌸"], motion: "fall", count: 20 },
+  neutral: { emojis: ["✨", "💜"], motion: "float", count: 14 },
+};
+
+const randomBetween = (min, max) => min + Math.random() * (max - min);
+
+function MoodBurst({ burst }) {
+  const particles = useMemo(() => {
+    if (!burst) return [];
+
+    const style =
+      BURST_STYLES[String(burst.mood).toLowerCase()] ||
+      BURST_STYLES.neutral;
+
+    return Array.from({ length: style.count }, (_, index) => ({
+      id: `${burst.key}-${index}`,
+      emoji: style.emojis[index % style.emojis.length],
+      motion: style.motion,
+      vars: {
+        "--x": `${randomBetween(2, 98)}vw`,
+        "--y": `${randomBetween(10, 80)}vh`,
+        "--dx": `${randomBetween(-42, 42)}vw`,
+        "--dy": `${randomBetween(-45, 5)}vh`,
+        "--sway": `${randomBetween(-60, 60)}px`,
+        "--spin": `${randomBetween(-260, 260)}deg`,
+        "--size": `${randomBetween(16, 30)}px`,
+        "--delay": `${randomBetween(0, 0.9)}s`,
+        "--duration": `${randomBetween(2.4, 4.2)}s`,
+      },
+    }));
+  }, [burst]);
+
+  if (!burst) return null;
+
+  return (
+    <div className="mood-burst" aria-hidden="true">
+      {particles.map((particle) => (
+        <span
+          key={particle.id}
+          className={`burst-particle motion-${particle.motion}`}
+          style={particle.vars}
+        >
+          {particle.emoji}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/*
+ * Guided breathing: the bubble grows (in), holds, and shrinks (out),
+ * 4 seconds each, for a few rounds.
+ */
+const BREATH_STEPS = [
+  { phase: "in", label: "Breathe in…", seconds: 4 },
+  { phase: "hold", label: "Hold…", seconds: 4 },
+  { phase: "out", label: "Breathe out…", seconds: 4 },
+];
+
+const BREATH_ROUNDS = 4;
+
+function BreathingCard() {
+  const [step, setStep] = useState(-1);
+
+  useEffect(() => {
+    if (step < 0) return undefined;
+
+    if (step >= BREATH_STEPS.length * BREATH_ROUNDS) {
+      setStep(-1);
+      return undefined;
+    }
+
+    const current = BREATH_STEPS[step % BREATH_STEPS.length];
+    const timer = setTimeout(
+      () => setStep((value) => value + 1),
+      current.seconds * 1000
+    );
+
+    return () => clearTimeout(timer);
+  }, [step]);
+
+  const running = step >= 0;
+  const current = running
+    ? BREATH_STEPS[step % BREATH_STEPS.length]
+    : null;
+  const round = running
+    ? Math.floor(step / BREATH_STEPS.length) + 1
+    : 0;
+
+  return (
+    <div className="breathing-card">
+      <div className="breathing-heading">
+        <strong>Take a breath</strong>
+        <small>
+          {running
+            ? `Round ${round} of ${BREATH_ROUNDS}`
+            : "1-minute calm"}
+        </small>
+      </div>
+
+      <div
+        className={`breathing-bubble ${
+          current ? `phase-${current.phase}` : ""
+        }`}
+      >
+        <span>{current ? current.label : "🫧"}</span>
+      </div>
+
+      <button
+        type="button"
+        className="breathing-button"
+        onClick={() => setStep(running ? -1 : 0)}
+      >
+        {running ? "Stop" : "Start"}
+      </button>
+    </div>
+  );
+}
+
+// Reveals a new bot reply letter by letter
+function Typewriter({ text, speed = 16 }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (count >= text.length) return undefined;
+
+    const timer = setTimeout(
+      () => setCount((value) => value + 1),
+      speed
+    );
+
+    return () => clearTimeout(timer);
+  }, [count, text, speed]);
+
+  const done = count >= text.length;
+
+  return (
+    <>
+      {text.slice(0, count)}
+      {!done && <span className="type-caret" />}
+    </>
+  );
+}
+
+/*
+ * Cards lean towards the mouse and a soft light follows it.
+ * One listener for the whole page.
+ */
+const TILT_SELECTOR = ".stat-card, .recommendation-card, .insight-card";
+
+function useTiltCards() {
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return undefined;
+    }
+
+    let active = null;
+
+    const reset = (element) => {
+      element.style.removeProperty("--rx");
+      element.style.removeProperty("--ry");
+    };
+
+    const onMove = (event) => {
+      const card = event.target.closest?.(TILT_SELECTOR);
+
+      if (active && active !== card) {
+        reset(active);
+      }
+
+      active = card;
+
+      if (!card) return;
+
+      const box = card.getBoundingClientRect();
+      const x = (event.clientX - box.left) / box.width;
+      const y = (event.clientY - box.top) / box.height;
+
+      card.style.setProperty("--rx", `${(0.5 - y) * 8}deg`);
+      card.style.setProperty("--ry", `${(x - 0.5) * 10}deg`);
+      card.style.setProperty("--mx", `${x * 100}%`);
+      card.style.setProperty("--my", `${y * 100}%`);
+    };
+
+    const onLeave = () => {
+      if (active) reset(active);
+      active = null;
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerleave", onLeave);
+
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
+}
+
 function StatCard({
   icon,
   title,
@@ -434,6 +643,8 @@ function EmptyState({ text }) {
 function App() {
   useRevealOnScroll();
 
+  useTiltCards();
+
   const analyzerPlaceholder =
     useRotatingText(ANALYZER_EXAMPLES);
 
@@ -462,6 +673,18 @@ function App() {
   const [error, setError] = useState("");
 
   const [result, setResult] = useState(null);
+
+  // Emoji shower for each new mood result; cleared after it falls
+  const [burst, setBurst] = useState(null);
+
+  useEffect(() => {
+    if (!result?.mood) return undefined;
+
+    setBurst({ mood: result.mood, key: Date.now() });
+
+    const timer = setTimeout(() => setBurst(null), 5500);
+    return () => clearTimeout(timer);
+  }, [result]);
 
   const [dashboard, setDashboard] = useState(null);
 
@@ -1004,6 +1227,8 @@ function App() {
       const botMessage = {
         id: `bot-${Date.now()}`,
         sender: "bot",
+        // New replies type themselves out
+        animate: true,
         text:
           data.reply ||
           "I'm here with you. Tell me more.",
@@ -1686,6 +1911,8 @@ function App() {
 
   return (
     <div className="app-shell">
+      <MoodBurst burst={burst} />
+
       {mobileMenu && (
         <div
           className="mobile-overlay"
@@ -2325,7 +2552,15 @@ function App() {
                             }`}
                           >
                             <p>
-                              {message.text}
+                              {message.animate ? (
+                                <Typewriter
+                                  text={
+                                    message.text
+                                  }
+                                />
+                              ) : (
+                                message.text
+                              )}
                             </p>
 
                             {message.sender ===
@@ -3586,6 +3821,8 @@ function App() {
                   </p>
                 )}
               </div>
+
+              <BreathingCard />
 
               <div className="side-motivation">
                 <span>

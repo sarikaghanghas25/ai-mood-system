@@ -307,7 +307,6 @@ body {
     border-color 0.45s ease;
 }
 
-.stat-card:hover,
 .quick-actions-card:hover,
 .activity-card:hover,
 .chart-card:hover {
@@ -360,7 +359,6 @@ body {
 }
 
 .recommendation-card:hover {
-  transform: translateY(-5px) scale(1.01);
   box-shadow: 0 18px 36px rgba(20, 25, 90, 0.25);
 }
 
@@ -528,22 +526,273 @@ body {
 
 /* ---------- Scroll reveal (class added by App.jsx) ---------- */
 
+/* Uses `translate` (not `transform`) so hover and tilt still work */
 .reveal-ready .reveal {
   opacity: 0;
-  transform: translateY(26px);
+  translate: 0 26px;
   transition:
     opacity 0.8s var(--ease-out),
-    transform 0.8s var(--ease-out);
+    translate 0.8s var(--ease-out),
+    transform 0.45s var(--ease-out),
+    box-shadow 0.45s ease,
+    border-color 0.45s ease;
 }
 
 .reveal-ready .reveal.in-view {
   opacity: 1;
-  transform: none;
+  translate: 0 0;
 }
 
 .reveal-ready .stats-grid .reveal:nth-child(2) { transition-delay: 0.07s; }
 .reveal-ready .stats-grid .reveal:nth-child(3) { transition-delay: 0.14s; }
 .reveal-ready .stats-grid .reveal:nth-child(4) { transition-delay: 0.21s; }
+
+/* ---------- 3D tilt + light that follows the mouse ---------- */
+
+.stat-card,
+.recommendation-card,
+.insight-card {
+  position: relative;
+  transform:
+    perspective(800px)
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+}
+
+.stat-card:hover,
+.insight-card:hover {
+  border-color: #cbd6f4;
+  box-shadow: var(--glow);
+}
+
+.stat-card:hover,
+.recommendation-card:hover,
+.insight-card:hover {
+  transform:
+    perspective(800px)
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg))
+    translateY(-4px);
+}
+
+.stat-card::after,
+.recommendation-card::after,
+.insight-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(120, 140, 255, 0.16),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.stat-card:hover::after,
+.recommendation-card:hover::after,
+.insight-card:hover::after {
+  opacity: 1;
+}
+
+/* ---------- Mood emoji shower ---------- */
+
+.mood-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.burst-particle {
+  position: absolute;
+  font-size: var(--size);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-duration: var(--duration);
+  animation-delay: var(--delay);
+  animation-timing-function: var(--ease-out);
+  animation-fill-mode: both;
+}
+
+/* happy: confetti bursting out of the middle */
+.motion-burst {
+  left: 50%;
+  top: 48%;
+  animation-name: confetti;
+}
+
+/* sad, angry, stressed: drifting down from the top */
+.motion-fall {
+  left: var(--x);
+  top: -6vh;
+  animation-name: fall;
+  animation-timing-function: linear;
+}
+
+/* anxious: bubbles rising from the bottom */
+.motion-rise {
+  left: var(--x);
+  bottom: -6vh;
+  animation-name: rise-up;
+  animation-timing-function: ease-in;
+}
+
+/* tired, neutral: twinkling in place */
+.motion-float {
+  left: var(--x);
+  top: var(--y);
+  animation-name: twinkle;
+}
+
+@keyframes confetti {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.3) rotate(0); }
+  12% { opacity: 1; }
+  55% { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(1) rotate(var(--spin)); }
+  100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 45vh)) scale(0.9) rotate(calc(var(--spin) * 2)); }
+}
+
+@keyframes fall {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  10% { opacity: 0.95; }
+  50% { transform: translate(var(--sway), 55vh) rotate(calc(var(--spin) / 2)); }
+  90% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(0, 112vh) rotate(var(--spin)); }
+}
+
+@keyframes rise-up {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  15% { opacity: 0.9; }
+  50% { transform: translate(var(--sway), -55vh) scale(1); }
+  100% { opacity: 0; transform: translate(0, -112vh) scale(1.15); }
+}
+
+@keyframes twinkle {
+  0% { opacity: 0; transform: scale(0.2) translateY(10px); }
+  30% { opacity: 1; transform: scale(1.1) translateY(0); }
+  70% { opacity: 0.9; transform: scale(1) translateY(-14px); }
+  100% { opacity: 0; transform: scale(0.6) translateY(-30px); }
+}
+
+/* ---------- Breathing bubble ---------- */
+
+.breathing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+
+.breathing-heading {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.breathing-heading strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.breathing-heading small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.breathing-bubble {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(135deg, #5481f7, #6654ed);
+  box-shadow:
+    0 0 0 10px rgba(84, 129, 247, 0.1),
+    0 0 0 22px rgba(84, 129, 247, 0.05),
+    0 14px 30px rgba(76, 112, 234, 0.3);
+  transform: scale(0.72);
+  transition: transform 4s ease-in-out, box-shadow 4s ease-in-out;
+  animation: idle-breathe 4s ease-in-out infinite;
+}
+
+.breathing-bubble span {
+  font-size: 13px;
+}
+
+.breathing-bubble.phase-in,
+.breathing-bubble.phase-hold,
+.breathing-bubble.phase-out {
+  animation: none;
+}
+
+.breathing-bubble.phase-in,
+.breathing-bubble.phase-hold {
+  transform: scale(1);
+  box-shadow:
+    0 0 0 16px rgba(84, 129, 247, 0.12),
+    0 0 0 34px rgba(84, 129, 247, 0.06),
+    0 18px 38px rgba(76, 112, 234, 0.35);
+}
+
+.breathing-bubble.phase-out {
+  transform: scale(0.62);
+}
+
+@keyframes idle-breathe {
+  0%, 100% { transform: scale(0.7); }
+  50% { transform: scale(0.78); }
+}
+
+.breathing-button {
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 11px;
+  color: white;
+  background: linear-gradient(135deg, #4f6fff, #7659e9);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.3s ease;
+}
+
+.breathing-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(79, 91, 222, 0.3);
+}
+
+/* ---------- Typewriter caret ---------- */
+
+.type-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: currentColor;
+  animation: blink 0.8s steps(2) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
 
 /* ---------- Auth page ---------- */
 
@@ -606,6 +855,6 @@ body {
 
   .reveal-ready .reveal {
     opacity: 1;
-    transform: none;
+    translate: 0 0;
   }
 }
