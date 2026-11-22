@@ -104,6 +104,7 @@ USER_REPORTED = [
     ("I have so many dresses lakin mne abhi tak phi nhi h", {"neutral"}),
     ("meri job lg gyi", {"happy"}),
     ("meri dost ki shadi hori h lakin wo kana nhi chahti", {"sad", "anxious"}),
+    ("MERA PHONE TUT GYA BUT I GOT NEW ONE", {"happy"}),
 ]
 
 

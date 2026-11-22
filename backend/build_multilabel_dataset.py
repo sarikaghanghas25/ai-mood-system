@@ -627,9 +627,10 @@ def bank_rows():
             text = pick(rng, first) + pick(rng, COMBO_CONNECTORS) + pick(rng, second)
             rows.append(make_row(pick(rng, PREFIXES) + text, labels))
 
-    # "Something good, BUT it went wrong": the label is only the outcome's
-    # moods. An equal number of plain good setups keeps them happy on their own.
-    for setups, outcomes, moods in CONTRAST_PATTERNS:
+    # "<setup> BUT <what happened next>": the label is only the outcome's
+    # moods ("helped, but got blamed" -> angry/sad; "phone broke, but got a
+    # new one" -> happy). An equal number of plain setups keeps their own mood.
+    for setups, setup_moods, outcomes, moods in CONTRAST_PATTERNS:
         rng = section_rng("contrast", setups[0])
         for _ in range(CONTRAST_ROWS_PER_PATTERN):
             text = (
@@ -638,7 +639,7 @@ def bank_rows():
                 + pick(rng, outcomes)
             )
             rows.append(make_row(text, moods))
-            rows.append(make_row(pick(rng, PREFIXES) + pick(rng, setups), ["happy"]))
+            rows.append(make_row(pick(rng, PREFIXES) + pick(rng, setups), setup_moods))
 
     for mood, idioms in IDIOMS.items():
         rng = section_rng("idiom", mood)

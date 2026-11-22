@@ -77,11 +77,29 @@ UNFAIR_RESULT = [
     "teacher ne meri baat hi nahi maani",
 ]
 
-# (good setup, what went wrong, moods of the whole sentence)
+# Small mishaps; reused as "it broke, but I got a new one"
+MISHAPS = [
+    "my phone broke", "I lost my wallet", "my laptop stopped working",
+    "my bike broke down", "I missed my bus", "my exam didn't go well",
+    "I lost my earphones", "my order got cancelled",
+    "mera phone toot gaya", "mera purse kho gaya", "meri bike kharab ho gayi",
+    "meri bus chhoot gayi", "mera laptop band ho gaya", "mera order cancel ho gaya",
+]
+
+# How it got sorted out. Combined with MISHAPS and labelled happy only
+RESOLVED = [
+    "but I got a new one", "but my dad bought me a new one", "but it got fixed",
+    "but I found it later", "but a friend helped me out", "but everything worked out",
+    "lekin naya mil gaya", "par papa ne naya dila diya", "lekin theek ho gaya",
+    "par baad mein mil gaya", "lekin dost ne madad kar di", "par sab sambhal gaya",
+]
+
+# (setup, the setup's own moods, what happened next, moods of the whole sentence)
 CONTRAST_PATTERNS = [
-    (KINDNESS, BETRAYED_AFTER_HELP, ["angry", "sad"]),
-    (OCCASIONS, RUINED_OCCASION, ["sad", "angry"]),
-    (EFFORT, UNFAIR_RESULT, ["angry", "sad"]),
+    (KINDNESS, ["happy"], BETRAYED_AFTER_HELP, ["angry", "sad"]),
+    (OCCASIONS, ["happy"], RUINED_OCCASION, ["sad", "angry"]),
+    (EFFORT, ["happy"], UNFAIR_RESULT, ["angry", "sad"]),
+    (MISHAPS, ["sad"], RESOLVED, ["happy"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words

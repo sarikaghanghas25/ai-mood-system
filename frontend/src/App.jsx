@@ -201,7 +201,7 @@ function RecommendationCard({
       </div>
 
       <div className="recommendation-list">
-        {(items || []).slice(0, 3).map((item, index) => (
+        {(items || []).slice(0, 4).map((item, index) => (
           <div
             className="recommendation-item"
             key={`${item}-${index}`}

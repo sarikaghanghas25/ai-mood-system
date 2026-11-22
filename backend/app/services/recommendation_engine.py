@@ -1,165 +1,102 @@
 # backend/app/services/recommendation_engine.py
 
+import random
+from collections import defaultdict, deque
 
-RECOMMENDATIONS = {
-    "happy": {
-        "music": [
-            "Happy – Pharrell Williams",
-            "Can't Stop the Feeling! – Justin Timberlake",
-            "Ilahi – Arijit Singh",
-        ],
-        "movies": [
-            "The Intern",
-            "3 Idiots",
-            "Zindagi Na Milegi Dobara",
-        ],
-        "activities": [
-            "Spend time with friends or family",
-            "Go for a walk or outdoor activity",
-            "Try something creative",
-        ],
-        "explanation": (
-            "You seem to be in a positive mood, so these recommendations "
-            "are designed to maintain your energy and make the moment more enjoyable."
-        ),
-    },
-
-    "sad": {
-        "music": [
-            "Agar Tum Saath Ho – Alka Yagnik & Arijit Singh",
-            "Kun Faya Kun – A.R. Rahman",
-            "Fix You – Coldplay",
-        ],
-        "movies": [
-            "The Pursuit of Happyness",
-            "The Secret Life of Walter Mitty",
-            "3 Idiots",
-        ],
-        "activities": [
-            "Talk to someone you trust",
-            "Take a relaxing walk",
-            "Write down your thoughts",
-        ],
-        "explanation": (
-            "Your mood appears low, so these recommendations focus on "
-            "comfort, emotional support, and gradually improving your mood."
-        ),
-    },
-
-    "angry": {
-        "music": [
-            "Weightless – Marconi Union",
-            "Let Her Go – Passenger",
-            "Kun Faya Kun – A.R. Rahman",
-        ],
-        "movies": [
-            "The Secret Life of Walter Mitty",
-            "The Pursuit of Happyness",
-            "Good Will Hunting",
-        ],
-        "activities": [
-            "Take slow deep breaths",
-            "Go for a quiet walk",
-            "Take a short break before making decisions",
-        ],
-        "explanation": (
-            "You appear to be experiencing anger or frustration. "
-            "These recommendations are intended to help you slow down, "
-            "relax, and process the emotion calmly."
-        ),
-    },
-
-    "stressed": {
-        "music": [
-            "Weightless – Marconi Union",
-            "River Flows in You – Yiruma",
-            "Perfect – Ed Sheeran",
-        ],
-        "movies": [
-            "The Intern",
-            "Chef",
-            "The Secret Life of Walter Mitty",
-        ],
-        "activities": [
-            "Try 5 minutes of deep breathing",
-            "Take a short walk away from screens",
-            "Listen to calming music",
-        ],
-        "explanation": (
-            "You seem to be experiencing stress, so these recommendations "
-            "focus on relaxation, reducing mental overload, and creating a calmer environment."
-        ),
-    },
-
-    "tired": {
-        "music": [
-            "River Flows in You – Yiruma",
-            "Perfect – Ed Sheeran",
-            "Photograph – Ed Sheeran",
-        ],
-        "movies": [
-            "The Intern",
-            "Chef",
-            "Paddington",
-        ],
-        "activities": [
-            "Take a short rest",
-            "Drink some water and stretch",
-            "Reduce screen time and relax",
-        ],
-        "explanation": (
-            "You appear tired, so the recommendations focus on low-energy "
-            "activities and relaxation instead of demanding tasks."
-        ),
-    },
-
-    "neutral": {
-        "music": [
-            "Blinding Lights – The Weeknd",
-            "Ilahi – Arijit Singh",
-            "Count on Me – Bruno Mars",
-        ],
-        "movies": [
-            "The Intern",
-            "3 Idiots",
-            "Zindagi Na Milegi Dobara",
-        ],
-        "activities": [
-            "Go for a walk",
-            "Read or learn something interesting",
-            "Try a new hobby",
-        ],
-        "explanation": (
-            "Your mood appears balanced, so these recommendations provide "
-            "a mix of entertainment, exploration, and positive activities."
-        ),
-    },
-}
+from app.services.recommendation_data import EXPLANATIONS, RECOMMENDATIONS
 
 
-def get_recommendations(mood: str) -> dict:
+CATEGORIES = ("music", "movies", "activities")
+
+ITEMS_PER_CATEGORY = 4
+
+# How many recently shown items per user are skipped next time
+RECENT_MEMORY = 60
+
+# user_id -> items shown recently (in memory; resets when the server restarts)
+_recently_shown = defaultdict(lambda: deque(maxlen=RECENT_MEMORY))
+
+
+def _mood_key(mood: str) -> str:
+    mood = (mood or "neutral").lower().strip()
+    return mood if mood in RECOMMENDATIONS else "neutral"
+
+
+def _slots_per_mood(moods: list) -> list:
     """
-    Return recommendations based on detected mood.
+    How many picks each mood gets in a category. The main mood gets the
+    most: ["sad", "anxious"] -> [("sad", 2), ("anxious", 2)],
+    ["sad", "anxious", "tired"] -> [("sad", 2), ("anxious", 1), ("tired", 1)].
     """
+    if len(moods) == 1:
+        return [(moods[0], ITEMS_PER_CATEGORY)]
 
-    mood = mood.lower().strip()
+    others = moods[1:]
+    main_slots = ITEMS_PER_CATEGORY - len(others) if len(others) > 1 else ITEMS_PER_CATEGORY // 2
+    slots = [(moods[0], main_slots)]
 
-    return RECOMMENDATIONS.get(
-        mood,
-        RECOMMENDATIONS["neutral"]
-    )
+    remaining = ITEMS_PER_CATEGORY - main_slots
+    for index, mood in enumerate(others):
+        share = remaining // len(others) + (1 if index < remaining % len(others) else 0)
+        slots.append((mood, share))
+
+    return slots
+
+
+def _pick(pool: list, count: int, skip: set) -> list:
+    """Random picks, preferring items not in `skip`."""
+    fresh = [item for item in pool if item not in skip]
+    random.shuffle(fresh)
+    picks = fresh[:count]
+
+    # Small pool or many visits: top up with older items
+    if len(picks) < count:
+        used = [item for item in pool if item not in picks]
+        random.shuffle(used)
+        picks += used[: count - len(picks)]
+
+    return picks
+
+
+def get_recommendations(mood: str, moods: list = None, user_id: int = None) -> dict:
+    """
+    A fresh set of music, movies and activities for the detected mood(s).
+
+    moods: all detected moods, main mood first (e.g. ["sad", "anxious"]).
+    user_id: when given, items this user saw recently are avoided.
+    """
+    main = _mood_key(mood)
+
+    all_moods = [main]
+    for other in moods or []:
+        key = _mood_key(other)
+        if key not in all_moods and key != "neutral":
+            all_moods.append(key)
+
+    recent = _recently_shown[user_id] if user_id is not None else deque()
+    skip = set(recent)
+
+    result = {}
+
+    for category in CATEGORIES:
+        chosen = []
+
+        for mood_key, slots in _slots_per_mood(all_moods):
+            pool = RECOMMENDATIONS[mood_key][category]
+            chosen += _pick(pool, slots, skip | set(chosen))
+
+        result[category] = chosen
+
+        if user_id is not None:
+            recent.extend(chosen)
+
+    result["explanation"] = EXPLANATIONS[main]
+
+    return result
 
 
 def get_recommendation_summary(mood: str) -> str:
     """
     Return an explanation/summary for the detected mood.
     """
-
-    mood = mood.lower().strip()
-
-    recommendation = RECOMMENDATIONS.get(
-        mood,
-        RECOMMENDATIONS["neutral"]
-    )
-
-    return recommendation["explanation"]
+    return EXPLANATIONS[_mood_key(mood)]

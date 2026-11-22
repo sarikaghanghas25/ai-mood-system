@@ -38,7 +38,9 @@ def mood_and_recommend(
     confidence = ai_result["confidence"]
 
     recommendations = get_recommendations(
-        mood
+        mood,
+        moods=ai_result["moods"],
+        user_id=current_user.id,
     )
 
     mood_history = MoodHistory(
