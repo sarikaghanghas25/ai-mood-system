@@ -80,7 +80,10 @@ function formatConfidence(value) {
     return "—";
   }
 
-  return `${number.toFixed(2)}%`;
+  // Backend sends 0-1 (0.96), show it as a percentage (96%)
+  const percent = number <= 1 ? number * 100 : number;
+
+  return `${percent.toFixed(0)}%`;
 }
 
 function formatDate(value) {
@@ -1049,15 +1052,21 @@ function App() {
       const probabilities =
         result?.probabilities || {};
 
+      // Backend sends 0-1 per mood, convert to 0-100
       return Object.entries(
         probabilities
-      ).map(([mood, value]) => ({
-        mood: moodInfo(mood).label,
+      )
+        .map(([mood, value]) => ({
+          mood: moodInfo(mood).label,
 
-        value: Number(value) || 0,
+          value:
+            (Number(value) || 0) * 100,
 
-        color: moodInfo(mood).color,
-      }));
+          color: moodInfo(mood).color,
+        }))
+        .sort(
+          (a, b) => b.value - a.value
+        );
     }, [result]);
 
   /*
@@ -2160,6 +2169,37 @@ function App() {
                         ).label
                       }
                     </strong>
+
+                    {result.moods?.length >
+                      1 && (
+                      <div className="mixed-moods">
+                        <span>
+                          Mixed emotions
+                        </span>
+
+                        <div className="mixed-mood-chips">
+                          {result.moods.map(
+                            (mood) => (
+                              <em
+                                className="mixed-mood-chip"
+                                key={mood}
+                              >
+                                {
+                                  moodInfo(
+                                    mood
+                                  ).emoji
+                                }{" "}
+                                {
+                                  moodInfo(
+                                    mood
+                                  ).label
+                                }
+                              </em>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="result-meta">
@@ -2250,7 +2290,7 @@ function App() {
 
                             <b>
                               {item.value.toFixed(
-                                2
+                                0
                               )}
                               %
                             </b>
@@ -2616,7 +2656,7 @@ function App() {
                             `${Number(
                               value
                             ).toFixed(
-                              2
+                              0
                             )}%`,
                             "Probability",
                           ]}

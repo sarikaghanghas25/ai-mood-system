@@ -1061,6 +1061,33 @@ button:disabled {
   font-size: 16px;
 }
 
+.result-detected .mixed-moods {
+  margin-top: 12px;
+}
+
+.result-detected .mixed-moods > span {
+  margin-top: 0;
+}
+
+.mixed-mood-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mixed-mood-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .result-meta {
   align-self: center;
 }
