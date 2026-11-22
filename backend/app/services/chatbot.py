@@ -1308,9 +1308,18 @@ def generate_chatbot_reply(
     # Return
     # --------------------------------------------------------
 
+    # All moods: the chat mood first, then the others the analysis found
+    moods = [mood] + [
+        other for other in mood_result.get("moods", [])
+        if other != mood
+    ]
+    emotional_moods = [m for m in moods if m != "neutral"]
+    moods = emotional_moods[:3] if emotional_moods else ["neutral"]
+
     return {
         "reply": reply,
         "reply_source": reply_source,
+        "moods": moods,
         "mood": mood,
         "confidence": round(
             float(confidence),

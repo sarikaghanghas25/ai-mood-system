@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database.database import add_missing_columns
 from app.services.mood_ai import detect_mood_with_ai
 
 from app.routers.auth import router as auth_router
@@ -20,6 +21,9 @@ from app.routers.chatbot import router as chatbot_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # New columns (e.g. mood_history.moods) on an existing database
+    add_missing_columns()
+
     # Loading the mood model takes ~5s; do it at startup instead of
     # making the first user wait
     try:

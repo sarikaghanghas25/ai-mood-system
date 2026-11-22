@@ -40,6 +40,13 @@ class MoodHistory(Base):
         nullable=False
     )
 
+    # Every detected mood, comma separated: "sad,anxious".
+    # Empty for rows saved before mixed moods existed.
+    moods = Column(
+        String(100),
+        nullable=True
+    )
+
     confidence = Column(
         Float,
         nullable=False
@@ -55,3 +62,11 @@ class MoodHistory(Base):
         "User",
         back_populates="mood_history"
     )
+
+    @property
+    def mood_list(self):
+        """All moods as a list; old rows fall back to the single mood."""
+        if self.moods:
+            return self.moods.split(",")
+
+        return [self.mood] if self.mood else []

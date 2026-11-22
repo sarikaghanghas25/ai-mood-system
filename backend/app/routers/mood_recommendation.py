@@ -45,6 +45,7 @@ def mood_and_recommend(
         user_id=current_user.id,
         text=request.text,
         mood=mood,
+        moods=",".join(ai_result["moods"]),
         confidence=confidence
     )
 

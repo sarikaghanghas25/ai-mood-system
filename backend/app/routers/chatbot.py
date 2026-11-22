@@ -42,6 +42,7 @@ def chat_with_ai(
         user_id=current_user.id,
         text=request.message,
         mood=result["mood"],
+        moods=",".join(result["moods"]),
         confidence=result["confidence"]
     )
 
@@ -53,6 +54,7 @@ def chat_with_ai(
         "reply": result["reply"],
         "reply_source": result["reply_source"],
         "mood": result["mood"],
+        "moods": result["moods"],
         "confidence": result["confidence"],
         "intensity": result["intensity"]
     }

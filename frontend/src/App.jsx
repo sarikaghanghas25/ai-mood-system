@@ -69,6 +69,19 @@ const moodInfo = (mood) => {
   );
 };
 
+// All moods of a history entry; older entries only have `mood`
+const historyMoods = (item) => {
+  const moods =
+    Array.isArray(item?.moods) &&
+    item.moods.length > 0
+      ? item.moods
+      : [item?.mood || "neutral"];
+
+  return moods.map((mood) =>
+    String(mood).toLowerCase()
+  );
+};
+
 function formatConfidence(value) {
   if (value === null || value === undefined || value === "") {
     return "—";
@@ -1092,13 +1105,14 @@ function App() {
     useMemo(() => {
       const counts = {};
 
+      // Mixed entries count for every mood they contain
       history.forEach((item) => {
-        const mood = String(
-          item.mood || "neutral"
-        ).toLowerCase();
-
-        counts[mood] =
-          (counts[mood] || 0) + 1;
+        historyMoods(item).forEach(
+          (mood) => {
+            counts[mood] =
+              (counts[mood] || 0) + 1;
+          }
+        );
       });
 
       return Object.entries(
@@ -2892,9 +2906,18 @@ function App() {
 
                               <div className="history-text">
                                 <strong>
-                                  {
-                                    mood.label
-                                  }
+                                  {historyMoods(
+                                    item
+                                  )
+                                    .map(
+                                      (name) =>
+                                        moodInfo(
+                                          name
+                                        ).label
+                                    )
+                                    .join(
+                                      " + "
+                                    )}
                                 </strong>
 
                                 <p>
@@ -3195,9 +3218,18 @@ function App() {
 
                             <div>
                               <strong>
-                                {
-                                  mood.label
-                                }{" "}
+                                {historyMoods(
+                                  item
+                                )
+                                  .map(
+                                    (name) =>
+                                      moodInfo(
+                                        name
+                                      ).label
+                                  )
+                                  .join(
+                                    " + "
+                                  )}{" "}
                                 mood
                                 detected
                               </strong>

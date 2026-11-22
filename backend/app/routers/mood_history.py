@@ -71,13 +71,16 @@ def get_mood_trend(
             "id": item.id,
             "date": item.created_at,
             "mood": mood,
+            "moods": item.mood_list,
             "score": mood_scores.get(mood, 4),
             "confidence": item.confidence,
         })
 
+    # Counts every mood of a mixed entry ("sad,anxious" adds to both)
     mood_counts = Counter(
-        item["mood"]
+        detected.lower()
         for item in trend
+        for detected in item["moods"]
     )
 
     return {
