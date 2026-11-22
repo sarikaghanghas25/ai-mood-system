@@ -614,31 +614,215 @@ function QuickAction({ icon, text, onClick }) {
   );
 }
 
-function RecommendationCard({
-  icon,
-  title,
-  items,
-}) {
+/*
+ * Recommendations on a wheel you can spin: drag it, use the arrow
+ * buttons or keys, or click a bubble. The item at the top is shown in
+ * the middle.
+ */
+const WHEEL_CATEGORIES = [
+  { key: "music", icon: "🎵", label: "Music" },
+  { key: "movies", icon: "🎬", label: "Movies" },
+  { key: "activities", icon: "🌱", label: "Activities" },
+];
+
+// Shortest turn from one angle to another, in degrees (-180..180)
+const shortestTurn = (from, to) =>
+  ((((to - from) % 360) + 540) % 360) - 180;
+
+function RecommendationWheel({ recommendations }) {
+  const items = useMemo(
+    () =>
+      WHEEL_CATEGORIES.flatMap((category) =>
+        (recommendations?.[category.key] || [])
+          .slice(0, 4)
+          .map((text) => ({ ...category, text }))
+      ),
+    [recommendations]
+  );
+
+  const [rotation, setRotation] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const wheelRef = useRef(null);
+  const dragRef = useRef(null);
+
+  if (items.length === 0) return null;
+
+  const step = 360 / items.length;
+  const selected =
+    ((Math.round(-rotation / step) % items.length) + items.length) %
+    items.length;
+  const current = items[selected];
+
+  const turnBy = (steps) =>
+    setRotation((value) => Math.round(value / step) * step - steps * step);
+
+  const goTo = (index) =>
+    setRotation((value) => value + shortestTurn(value, -index * step));
+
+  const pointerAngle = (event) => {
+    const box = wheelRef.current.getBoundingClientRect();
+    return (
+      (Math.atan2(
+        event.clientY - (box.top + box.height / 2),
+        event.clientX - (box.left + box.width / 2)
+      ) *
+        180) /
+      Math.PI
+    );
+  };
+
+  const onPointerDown = (event) => {
+    dragRef.current = {
+      startAngle: pointerAngle(event),
+      startRotation: rotation,
+      moved: false,
+    };
+  };
+
+  const onPointerMove = (event) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    const delta = shortestTurn(drag.startAngle, pointerAngle(event));
+
+    // Only grab the pointer once it really moves, so plain clicks
+    // still reach the bubbles
+    if (!drag.moved && Math.abs(delta) > 3) {
+      drag.moved = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setDragging(true);
+    }
+
+    if (drag.moved) setRotation(drag.startRotation + delta);
+  };
+
+  const onPointerUp = () => {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    if (drag.moved) {
+      // Snap so one item sits exactly at the top
+      setRotation((value) => Math.round(value / step) * step);
+      setDragging(false);
+    }
+
+    // Let the click handler see whether this was a drag
+    setTimeout(() => {
+      dragRef.current = null;
+    }, 0);
+  };
+
+  const onBubbleClick = (index) => {
+    if (dragRef.current?.moved) return;
+    goTo(index);
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      turnBy(1);
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      turnBy(-1);
+    }
+  };
+
   return (
-    <div className="recommendation-card">
-      <div className="recommendation-card-title">
-        <span>{icon}</span>
+    <div className="rec-wheel-wrap">
+      <div
+        ref={wheelRef}
+        className={`rec-wheel ${dragging ? "is-dragging" : ""}`}
+        tabIndex={0}
+        role="listbox"
+        aria-label="Recommendations wheel. Drag or use arrow keys to spin."
+        aria-activedescendant={`rec-item-${selected}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onPointerLeave={() => {
+          if (!dragRef.current?.moved) dragRef.current = null;
+        }}
+        onKeyDown={onKeyDown}
+      >
+        <div className="rec-wheel-ring" />
 
-        <strong>{title}</strong>
+        {items.map((item, index) => {
+          const angle = index * step + rotation;
+
+          return (
+            <button
+              type="button"
+              key={`${item.key}-${item.text}`}
+              id={`rec-item-${index}`}
+              role="option"
+              aria-selected={index === selected}
+              title={item.text}
+              className={`rec-bubble rec-${item.key} ${
+                index === selected ? "is-selected" : ""
+              }`}
+              style={{ "--angle": `${angle}deg` }}
+              onClick={() => onBubbleClick(index)}
+            >
+              <span>{item.icon}</span>
+            </button>
+          );
+        })}
+
+        <div className="rec-wheel-center" key={selected}>
+          <span className="rec-center-icon">{current.icon}</span>
+          <small>{current.label}</small>
+          <strong>{current.text}</strong>
+          <em>
+            {selected + 1} / {items.length}
+          </em>
+        </div>
       </div>
 
-      <div className="recommendation-list">
-        {(items || []).slice(0, 4).map((item, index) => (
-          <div
-            className="recommendation-item"
-            key={`${item}-${index}`}
-          >
-            <span>✓</span>
+      <div className="rec-wheel-controls">
+        <button
+          type="button"
+          aria-label="Previous recommendation"
+          onClick={() => turnBy(-1)}
+        >
+          ◀
+        </button>
 
-            <p>{item}</p>
-          </div>
-        ))}
+        {WHEEL_CATEGORIES.map((category) => {
+          const first = items.findIndex(
+            (item) => item.key === category.key
+          );
+
+          if (first < 0) return null;
+
+          return (
+            <button
+              type="button"
+              key={category.key}
+              className={
+                current.key === category.key ? "is-active" : ""
+              }
+              onClick={() => goTo(first)}
+            >
+              {category.icon} {category.label}
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          aria-label="Next recommendation"
+          onClick={() => turnBy(1)}
+        >
+          ▶
+        </button>
       </div>
+
+      <p className="rec-wheel-hint">
+        Drag the wheel or tap a bubble to explore
+      </p>
     </div>
   );
 }
@@ -2897,37 +3081,21 @@ function App() {
                       mood.
                     </p>
 
-                    <div className="recommendation-grid">
-                      <RecommendationCard
-                        icon="🎵"
-                        title="Music"
-                        items={
-                          result
-                            .recommendations
-                            ?.music
-                        }
-                      />
-
-                      <RecommendationCard
-                        icon="🎬"
-                        title="Movies"
-                        items={
-                          result
-                            .recommendations
-                            ?.movies
-                        }
-                      />
-
-                      <RecommendationCard
-                        icon="🌱"
-                        title="Activities"
-                        items={
-                          result
-                            .recommendations
-                            ?.activities
-                        }
-                      />
-                    </div>
+                    <RecommendationWheel
+                      // New result: fresh wheel starting at the first item
+                      key={WHEEL_CATEGORIES.map(
+                        (category) =>
+                          (
+                            result
+                              .recommendations?.[
+                              category.key
+                            ] || []
+                          ).join("|")
+                      ).join("#")}
+                      recommendations={
+                        result.recommendations
+                      }
+                    />
                   </div>
                 </section>
               )}

@@ -794,6 +794,218 @@ body {
   50% { opacity: 0; }
 }
 
+/* ---------- Recommendation wheel ---------- */
+
+.rec-wheel-wrap {
+  --wheel: 360px;
+  --radius: 150px;
+  --bubble: 54px;
+  --center: 196px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0 4px;
+}
+
+.rec-wheel {
+  width: var(--wheel);
+  height: var(--wheel);
+  position: relative;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  outline: none;
+}
+
+.rec-wheel.is-dragging {
+  cursor: grabbing;
+}
+
+.rec-wheel:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
+}
+
+.rec-wheel-ring {
+  position: absolute;
+  inset: calc(50% - var(--radius));
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 18px rgba(255, 255, 255, 0.05),
+    inset 0 0 40px rgba(255, 255, 255, 0.08);
+}
+
+.rec-bubble {
+  width: var(--bubble);
+  height: var(--bubble);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  background: white;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(20, 25, 90, 0.28);
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--angle))
+    translateY(calc(-1 * var(--radius)))
+    rotate(calc(-1 * var(--angle)));
+  transition:
+    transform 0.7s var(--ease-spring),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.rec-wheel.is-dragging .rec-bubble {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.rec-bubble span {
+  display: block;
+  transition: transform 0.4s var(--ease-spring);
+}
+
+.rec-bubble:hover span {
+  transform: scale(1.18);
+}
+
+.rec-music { border-color: #f5c6e8; }
+.rec-movies { border-color: #bcd0ff; }
+.rec-activities { border-color: #bfe8cf; }
+
+.rec-bubble.is-selected {
+  border-color: #ffd86b;
+  box-shadow:
+    0 0 0 6px rgba(255, 216, 107, 0.35),
+    0 0 26px rgba(255, 255, 255, 0.85),
+    0 10px 22px rgba(20, 25, 90, 0.3);
+}
+
+.rec-bubble.is-selected span {
+  transform: scale(1.25);
+}
+
+.rec-wheel-center {
+  width: var(--center);
+  height: var(--center);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 22px;
+  border-radius: 50%;
+  color: #2b3566;
+  text-align: center;
+  background:
+    radial-gradient(circle at 30% 25%, #ffffff, #eef2ff 70%);
+  box-shadow:
+    0 20px 40px rgba(20, 25, 90, 0.3),
+    inset 0 -6px 14px rgba(102, 84, 237, 0.08);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: center-in 0.45s var(--ease-spring) both;
+}
+
+.rec-center-icon {
+  font-size: 30px;
+}
+
+.rec-wheel-center small {
+  color: #6654ed;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rec-wheel-center strong {
+  font-size: 14px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rec-wheel-center em {
+  margin-top: 2px;
+  color: #8a93b8;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@keyframes center-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.rec-wheel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rec-wheel-controls button {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  color: white;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    transform 0.25s var(--ease-spring),
+    background 0.25s ease,
+    color 0.25s ease;
+}
+
+.rec-wheel-controls button:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.rec-wheel-controls button.is-active {
+  color: #4236d8;
+  background: white;
+}
+
+.rec-wheel-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  .rec-wheel-wrap {
+    --wheel: 290px;
+    --radius: 118px;
+    --bubble: 46px;
+    --center: 150px;
+  }
+
+  .rec-wheel-center strong {
+    font-size: 12px;
+    -webkit-line-clamp: 3;
+  }
+}
+
 /* ---------- Auth page ---------- */
 
 .auth-card {
