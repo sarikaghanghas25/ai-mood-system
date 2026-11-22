@@ -101,6 +101,7 @@ USER_REPORTED = [
     ("I have 1000 money mne shopping krli ab mere sare pese khtm hoge", {"stressed", "anxious"}),
     ("meri or meri best friend ki ldai hogi kisi dusri dost n kra di misunderstanding ab merko smj ni aara m uses kese baat kru", {"sad", "angry"}),
     ("mera sessional hue the mne Bhut acha likha lakin mam n merko marks nhi diye bhut kaam die mne mam ko bola b lakin wo nhi mani unhone dusre bachho ko ache marks diye siway mere", {"angry", "sad"}),
+    ("I have so many dresses lakin mne abhi tak phi nhi h", {"neutral"}),
 ]
 
 

@@ -147,8 +147,18 @@ def load_multilabel_model():
 def select_moods(probabilities: dict, thresholds: dict):
     """
     Every emotional mood above its own threshold, strongest first.
-    Neutral is only returned when no emotional mood qualifies.
+    Neutral wins when it is the most likely mood; otherwise it is only
+    returned when no emotional mood qualifies.
     """
+    neutral = probabilities.get("neutral", 0.0)
+    strongest_emotion = max(
+        (p for mood, p in probabilities.items() if mood != "neutral"),
+        default=0.0,
+    )
+
+    if neutral >= thresholds.get("neutral", 0.5) and neutral > strongest_emotion:
+        return ["neutral"]
+
     detected = sorted(
         (
             mood for mood, probability in probabilities.items()
