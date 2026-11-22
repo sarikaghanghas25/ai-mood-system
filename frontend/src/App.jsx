@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { SOUNDS, ambientMusic } from "./ambientMusic";
 import "./App.css";
 import "./polish.css";
 
@@ -875,6 +876,287 @@ const trendInfo = (trend) => {
   return { key: "stable", arrow: "→" };
 };
 
+/*
+ * Speak instead of type: the browser's speech recognition writes what
+ * the user says into the mood box. Hidden where the browser has none.
+ */
+function useSpeechInput(text, setText) {
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const SpeechRecognition =
+    typeof window !== "undefined" &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  useEffect(
+    () => () => recognitionRef.current?.abort(),
+    []
+  );
+
+  const start = () => {
+    if (!SpeechRecognition || listening) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IN"; // Indian English, copes with Hinglish
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    // Keep what was already typed and add the speech after it
+    const before = text.trim() ? `${text.trim()} ` : "";
+
+    recognition.onresult = (event) => {
+      const spoken = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join(" ");
+
+      setText(before + spoken.trim());
+    };
+
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  };
+
+  const stop = () => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  };
+
+  return { supported: Boolean(SpeechRecognition), listening, start, stop };
+}
+
+/*
+ * Last five weeks as a calendar: each day shows the mood seen most that
+ * day, plus the current check-in streak.
+ */
+const CALENDAR_WEEKS = 5;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// Backend times are UTC without a "Z"; read them as UTC
+const parseServerDate = (value) => {
+  if (!value) return null;
+  const text = String(value);
+  const hasZone = /[zZ]|[+-]\d\d:?\d\d$/.test(text);
+  const date = new Date(hasZone ? text : `${text}Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const dayKey = (date) =>
+  `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+
+function MoodCalendar({ history }) {
+  const { days, streak, checkedDays } = useMemo(() => {
+    const byDay = {};
+
+    (history || []).forEach((item) => {
+      const date = parseServerDate(item.created_at || item.timestamp || item.date);
+      if (!date) return;
+
+      const key = dayKey(date);
+      byDay[key] = byDay[key] || {};
+      historyMoods(item).forEach((mood) => {
+        byDay[key][mood] = (byDay[key][mood] || 0) + 1;
+      });
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Start on the Monday CALENDAR_WEEKS - 1 weeks before this week
+    const start = new Date(today);
+    const weekday = (today.getDay() + 6) % 7; // Monday = 0
+    start.setDate(today.getDate() - weekday - (CALENDAR_WEEKS - 1) * 7);
+
+    const cells = Array.from({ length: CALENDAR_WEEKS * 7 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+
+      const counts = byDay[dayKey(date)] || null;
+      const top = counts
+        ? Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+        : null;
+
+      return {
+        date,
+        counts,
+        top,
+        isToday: date.getTime() === today.getTime(),
+        isFuture: date > today,
+      };
+    });
+
+    // Streak: consecutive days with a check-in, ending today
+    // (or yesterday, so it isn't lost before today's check-in)
+    let count = 0;
+    const cursor = new Date(today);
+    if (!byDay[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
+    while (byDay[dayKey(cursor)]) {
+      count += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return {
+      days: cells,
+      streak: count,
+      checkedDays: cells.filter((cell) => cell.counts).length,
+    };
+  }, [history]);
+
+  return (
+    <section className="chart-card mood-calendar" id="mood-calendar">
+      <div className="section-heading">
+        <div>
+          <span>YOUR JOURNEY</span>
+          <h2>Mood Calendar</h2>
+          <p>How you've felt over the last {CALENDAR_WEEKS} weeks.</p>
+        </div>
+
+        <div className={`streak-badge ${streak > 0 ? "is-active" : ""}`}>
+          <span>🔥</span>
+          <strong>{streak}</strong>
+          <small>day streak</small>
+        </div>
+      </div>
+
+      <div className="calendar-grid">
+        {WEEKDAYS.map((day) => (
+          <small className="calendar-weekday" key={day}>
+            {day}
+          </small>
+        ))}
+
+        {days.map((cell, index) => {
+          const info = cell.top ? moodInfo(cell.top) : null;
+          const tooltip = cell.counts
+            ? `${cell.date.toLocaleDateString([], { day: "numeric", month: "short" })}: ${Object.entries(cell.counts)
+                .map(([mood, total]) => `${moodInfo(mood).label} ×${total}`)
+                .join(", ")}`
+            : cell.date.toLocaleDateString([], { day: "numeric", month: "short" });
+
+          return (
+            <div
+              key={dayKey(cell.date)}
+              className={`calendar-day ${cell.counts ? "has-mood" : ""} ${
+                cell.isToday ? "is-today" : ""
+              } ${cell.isFuture ? "is-future" : ""}`}
+              style={{
+                "--color": info?.color || "#e6ebf7",
+                "--i": index,
+              }}
+              title={tooltip}
+            >
+              <span className="calendar-date">{cell.date.getDate()}</span>
+              {info && <span className="calendar-emoji">{info.emoji}</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="calendar-summary">
+        {checkedDays > 0
+          ? `You checked in on ${checkedDays} of the last ${CALENDAR_WEEKS * 7} days.`
+          : "Analyze your mood today to start your calendar."}
+        {streak >= 3 && " Keep the streak going! 🌟"}
+      </p>
+    </section>
+  );
+}
+
+/*
+ * A kind line for the current mood. "New one" flips the card over to
+ * show the next line on its back.
+ */
+const AFFIRMATIONS = {
+  happy: [
+    "Your joy is contagious. Share it today ✨",
+    "You deserve every good thing coming your way 🌻",
+    "Remember this feeling; you created it 💛",
+    "Happiness looks good on you 😊",
+    "Celebrate yourself, even the small wins 🎉",
+  ],
+  sad: [
+    "It's okay to not be okay. This will pass 💙",
+    "You are loved more than you know 🤍",
+    "Be gentle with yourself today 🌧️",
+    "Every storm runs out of rain 🌦️",
+    "Your feelings are valid, and so are you 💙",
+  ],
+  angry: [
+    "Breathe in calm, breathe out tension 🍃",
+    "You are in control of how you respond 🧘",
+    "Pause. You don't have to react right now 🌿",
+    "Your peace is more important than proving a point 🕊️",
+    "This feeling is temporary. You are not 🍃",
+  ],
+  tired: [
+    "Rest is productive too 🌙",
+    "You've done enough for today. Be proud 💤",
+    "Your body is asking for kindness. Listen 🛌",
+    "Slow down. Tomorrow is a fresh start 🌅",
+    "Recharging isn't quitting 🔋",
+  ],
+  anxious: [
+    "You are safe in this moment 🫧",
+    "One breath, one step at a time 🌬️",
+    "You have handled hard days before. You can again 💪",
+    "Not every thought is a fact 🌸",
+    "Focus on what you can control right now 🌿",
+  ],
+  stressed: [
+    "One thing at a time is enough 🌿",
+    "You don't have to do it all today 📋",
+    "Progress, not perfection 🌱",
+    "It's okay to ask for help 🤝",
+    "Take a break. The work will wait five minutes ☕",
+  ],
+  neutral: [
+    "Today is full of quiet possibilities 🌤️",
+    "You are exactly where you need to be 🌱",
+    "Small steps still move you forward 👣",
+    "Be curious about your day ✨",
+    "You matter, today and every day 💜",
+  ],
+};
+
+function AffirmationCard({ mood }) {
+  const key = String(mood || "").toLowerCase();
+  const lines = AFFIRMATIONS[key] || AFFIRMATIONS.neutral;
+
+  // Two faces: the front shows faces[0] and the back faces[1]
+  const [faces, setFaces] = useState([0, 1]);
+  const [flipped, setFlipped] = useState(false);
+
+  const next = () => {
+    const showing = flipped ? faces[1] : faces[0];
+    const upcoming = (showing + 1) % lines.length;
+
+    // Put the next line on the hidden face, then flip to it
+    setFaces(flipped ? [upcoming, faces[1]] : [faces[0], upcoming]);
+    setFlipped(!flipped);
+  };
+
+  return (
+    <div className="affirmation-card">
+      <div className="affirmation-heading">
+        <strong>💌 Daily Affirmation</strong>
+        <button type="button" onClick={next}>
+          New one ↻
+        </button>
+      </div>
+
+      <div className={`affirmation-flip ${flipped ? "is-flipped" : ""}`}>
+        <p className="affirmation-face">{lines[faces[0] % lines.length]}</p>
+        <p className="affirmation-face affirmation-back">
+          {lines[faces[1] % lines.length]}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function EmptyState({ text }) {
   return (
     <div className="empty-state">
@@ -913,11 +1195,80 @@ function App() {
 
   const [text, setText] = useState("");
 
+  const speech = useSpeechInput(text, setText);
+
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
 
   const [result, setResult] = useState(null);
+
+  // Soft background music with the recommendations (remembered per browser)
+  const [musicOn, setMusicOn] = useState(() => {
+    try {
+      return localStorage.getItem("ambient_music") !== "off";
+    } catch {
+      return true;
+    }
+  });
+
+  // Ocean / rain / chimes / bowls, or "auto" to follow the mood
+  const [soundChoice, setSoundChoice] = useState(() => {
+    try {
+      return localStorage.getItem("ambient_sound") || "auto";
+    } catch {
+      return "auto";
+    }
+  });
+
+  useEffect(() => {
+    if (result?.mood && musicOn) {
+      ambientMusic.play(result.mood, soundChoice);
+    } else {
+      ambientMusic.stop();
+    }
+  }, [result, musicOn, soundChoice]);
+
+  const chooseSound = (key) => {
+    // The click itself lets the browser start audio
+    ambientMusic.unlock();
+
+    try {
+      localStorage.setItem("ambient_sound", key);
+    } catch {
+      // Private mode etc.: still works for this visit
+    }
+
+    setSoundChoice(key);
+
+    if (!musicOn) setMusicOn(true);
+  };
+
+  // What "Auto" is playing right now, for the picker
+  const playingSound = ambientMusic.soundFor(
+    result?.mood,
+    soundChoice
+  );
+
+  useEffect(() => () => ambientMusic.stop(), []);
+
+  const toggleMusic = () => {
+    const next = !musicOn;
+
+    // The click itself lets the browser start audio
+    if (next) ambientMusic.unlock();
+
+    try {
+      localStorage.setItem(
+        "ambient_music",
+        next ? "on" : "off"
+      );
+    } catch {
+      // Private mode etc.: still works for this visit
+    }
+
+    setMusicOn(next);
+  };
 
   // Emoji shower for each new mood result; cleared after it falls
   const [burst, setBurst] = useState(null);
@@ -1288,6 +1639,9 @@ function App() {
 
       return;
     }
+
+    // Still inside the click, so the browser allows the music later
+    if (musicOn) ambientMusic.unlock();
 
     setLoading(true);
 
@@ -2709,6 +3063,36 @@ function App() {
                   </span>
 
                   <div className="analyzer-buttons">
+                    {speech.supported && (
+                      <button
+                        type="button"
+                        className={`mic-button ${
+                          speech.listening
+                            ? "is-listening"
+                            : ""
+                        }`}
+                        onClick={
+                          speech.listening
+                            ? speech.stop
+                            : speech.start
+                        }
+                        aria-pressed={
+                          speech.listening
+                        }
+                        title={
+                          speech.listening
+                            ? "Stop listening"
+                            : "Speak your feelings"
+                        }
+                      >
+                        <span>🎙️</span>
+
+                        {speech.listening
+                          ? "Listening..."
+                          : "Speak"}
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       className="clear-button"
@@ -3128,14 +3512,88 @@ function App() {
                     className="result-recommendations"
                     id="recommendations"
                   >
-                    <span className="recommendation-kicker">
-                      PERSONALIZED
-                    </span>
+                    <div className="recommendation-header">
+                      <div>
+                        <span className="recommendation-kicker">
+                          PERSONALIZED
+                        </span>
 
-                    <h3>
-                      Recommendations
-                      for You
-                    </h3>
+                        <h3>
+                          Recommendations
+                          for You
+                        </h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`music-toggle ${
+                          musicOn
+                            ? "is-on"
+                            : ""
+                        }`}
+                        onClick={
+                          toggleMusic
+                        }
+                        aria-pressed={
+                          musicOn
+                        }
+                      >
+                        <span className="music-bars">
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+
+                        {musicOn
+                          ? "Soft music on"
+                          : "Soft music off"}
+                      </button>
+                    </div>
+
+                    {musicOn && (
+                      <div
+                        className="sound-picker"
+                        role="radiogroup"
+                        aria-label="Relaxing sound"
+                      >
+                        {SOUNDS.map(
+                          (sound) => (
+                            <button
+                              type="button"
+                              key={
+                                sound.key
+                              }
+                              role="radio"
+                              aria-checked={
+                                soundChoice ===
+                                sound.key
+                              }
+                              className={`${
+                                soundChoice ===
+                                sound.key
+                                  ? "is-chosen"
+                                  : ""
+                              } ${
+                                soundChoice ===
+                                  "auto" &&
+                                playingSound ===
+                                  sound.key
+                                  ? "is-auto"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                chooseSound(
+                                  sound.key
+                                )
+                              }
+                            >
+                              {sound.icon}{" "}
+                              {sound.label}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    )}
 
                     <p>
                       Suggestions
@@ -3163,6 +3621,12 @@ function App() {
                   </div>
                 </section>
               )}
+
+              {/* =================================================
+                  MOOD CALENDAR
+              ================================================== */}
+
+              <MoodCalendar history={history} />
 
               {/* =================================================
                   SMART MOOD INSIGHTS
@@ -4195,6 +4659,12 @@ function App() {
                   </p>
                 )}
               </div>
+
+              <AffirmationCard
+                // New mood: start from its first line
+                key={latestMood}
+                mood={latestMood}
+              />
 
               <BreathingCard />
 
