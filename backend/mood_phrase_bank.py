@@ -149,6 +149,12 @@ DOMAIN_EVENTS = [
         "doctor ne aur tests karwane bole hain", "seene mein subah se dard ho raha hai",
         "agle hafte operation hai",
     ]),
+    (["anxious", "sad"], [
+        "my aunt was rushed to the emergency ward last night",
+        "grandma fell down and was taken to the hospital",
+        "dadi gir gayi aur unhe hospital le gaye", "bhai ki tabiyat achanak kharab ho gayi",
+        "maa ko emergency mein bharti karna pada", "chachu ka BP bahut badh gaya, hospital mein hain",
+    ]),
     (["sad"], [
         "I have been sick for two weeks and can't go out",
         "the doctor said it is a chronic illness",
@@ -232,6 +238,32 @@ DOMAIN_EVENTS = [
         "someone cut the queue in front of me", "people were rude to me at the store",
         "someone scratched my new car and drove off",
         "line mein kisi ne beech mein ghusne ki koshish ki", "bus mein mere saath badtameezi hui",
+    ]),
+
+    # ---------------- KINDNESS / PROUD MOMENTS ----------------
+    # Helping someone feels good, even when the place (hospital, accident) sounds bad
+    (["happy"], [
+        "I donated blood today and it saved a patient", "I helped an old man cross the road",
+        "I saved a drowning kid at the beach", "I took an accident victim to the hospital in time",
+        "I volunteered at the old age home today", "I fed stray dogs in my area",
+        "I donated my old clothes to an orphanage", "I taught poor kids for free today",
+        "I gave my seat to a pregnant lady and she blessed me",
+        "the patient I donated blood to is out of danger now",
+        "maine aaj blood donate kiya aur ek patient bach gaya",
+        "maine ek aadmi ki jaan bachayi", "accident wale ko time pe hospital le gaya aur wo bach gaya",
+        "aaj anaath ashram mein bachchon ke saath time bitaya",
+        "maine ek budhi amma ki madad ki", "aaj garib bachchon ko padhaya",
+        "maine apna khoon dekar kisi ki jaan bacha li", "aaj kisi ki madad karke bahut sukoon mila",
+    ]),
+
+    # ---------------- GOOD NEWS AT THE HOSPITAL ----------------
+    (["happy"], [
+        "my sister gave birth to a healthy baby in the hospital",
+        "dad got discharged from the hospital today", "the surgery was successful",
+        "the doctor said mom is completely fine now", "grandpa came back home from the ICU",
+        "hospital mein bhabhi ko beta hua", "papa aaj hospital se discharge ho gaye",
+        "operation successful raha", "doctor ne kaha maa ab bilkul theek hai",
+        "dadaji ICU se bahar aa gaye",
     ]),
 
     # ---------------- SAFETY / FEAR ----------------
@@ -366,4 +398,8 @@ EXTRA_NEUTRAL = [
     "aaj mausam saaf hai", "bus das baje aayegi", "kal sunday hai", "maine aaj daal chawal khaye",
     "main kapde dho raha hoon", "shaam ko gym jaunga", "abhi email likh raha hoon",
     "kal bank jaana hai", "main bazaar se sabzi laaya", "abhi news dekh raha hoon",
+    "I have a dentist appointment at five", "I went to collect my blood test report",
+    "the clinic is closed on sundays", "my yearly health checkup is next week",
+    "doctor ke paas normal checkup ke liye gaya tha", "hospital se report leni hai",
+    "clinic shaam ko khulta hai", "aankhon ka checkup karwana hai",
 ]
