@@ -35,6 +35,29 @@ BETRAYED_AFTER_HELP = [
     "wahi ab mukar gaya", "usne meri hi shikayat kar di", "sabne mujhe hi galat bataya",
 ]
 
+# Helping or saving someone, still going on; reused by the builder for
+# "I was saving them, but I got hurt"
+RESCUE = [
+    "I was helping an old lady cross the road", "I was pulling a kid out of the water",
+    "I was saving a puppy from the traffic", "I was trying to stop two guys from fighting",
+    "I was helping my neighbour carry the gas cylinder", "I was rescuing a cat from the tree",
+    "main ek bachche ko pani se nikal rahi thi", "main ek aunty ki madad kar raha tha",
+    "main ek ladke ko bacha raha tha", "ek kutte ke bachche ko road se hata rahi thi",
+    "main dost ko ladai se rok raha tha", "papa ko seedhi se utarne mein madad kar rahi thi",
+    "ek budhe aadmi ko sambhal raha tha", "ek ladki ko bike se girne se bacha rahi thi",
+]
+
+# Getting hurt while helping. Combined with RESCUE and labelled sad only:
+# nobody did anything wrong, so it is not anger
+HURT_WHILE_HELPING = [
+    "I hurt my hand in the process", "I slipped and twisted my ankle",
+    "I got a deep cut on my arm", "I fell and hurt my knee badly",
+    "my back got hurt lifting it", "I got scratched all over",
+    "isme mera haath chhil gaya", "main khud gir gayi aur ghutna phoot gaya",
+    "mere pair mein moch aa gayi", "mujhe hi bahut zor se lag gayi",
+    "mere haath se khoon nikalne laga", "meri kamar mein dard ho gaya",
+]
+
 # Happy occasions; reused by the builder for "it was a celebration, but it got ruined"
 OCCASIONS = [
     "it was my birthday today", "we were celebrating diwali at home",
@@ -100,6 +123,7 @@ CONTRAST_PATTERNS = [
     (OCCASIONS, ["happy"], RUINED_OCCASION, ["sad", "angry"]),
     (EFFORT, ["happy"], UNFAIR_RESULT, ["angry", "sad"]),
     (MISHAPS, ["sad"], RESOLVED, ["happy"]),
+    (RESCUE, ["neutral"], HURT_WHILE_HELPING, ["sad"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words

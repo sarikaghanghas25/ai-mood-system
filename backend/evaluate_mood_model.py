@@ -106,6 +106,7 @@ USER_REPORTED = [
     ("meri dost ki shadi hori h lakin wo kana nhi chahti", {"sad", "anxious"}),
     ("MERA PHONE TUT GYA BUT I GOT NEW ONE", {"happy"}),
     ("getting shy", {"anxious"}),
+    ("aaj m ek ldki ko buhari thi lakin usko chate time merko chot lgyi", {"sad"}),
 ]
 
 
