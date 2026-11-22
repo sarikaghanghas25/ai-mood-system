@@ -270,6 +270,22 @@ DOMAIN_EVENTS = [
     # Helping someone feels good, even when the place (hospital, accident) sounds bad
     (["happy"], KINDNESS),
 
+    # ---------------- MISHAP + SCARED OF TELLING FAMILY ----------------
+    # Nobody else is to blame, so this is sad + anxious, not angry
+    (["sad", "anxious"], [
+        "I dropped my dad's laptop and now I have to tell him",
+        "I scratched the car and I don't know how to tell my parents",
+        "I failed the test and I am scared to show the report card at home",
+        "I lost the money mom gave me for fees",
+        "my phone fell in the water, mom is going to kill me",
+        "mujhse papa ka laptop gir gaya, ab unhe kaise bataun",
+        "fees ke paise kho gaye, ghar pe kya bolunga",
+        "report card mein number kam aaye, ghar dikhane mein darr lag raha hai",
+        "mummy ka mehnga glass toot gaya mujhse, ab daant padegi",
+        "naya phone gir ke screen toot gayi, ghar wale bahut gussa karenge",
+        "bike ka accident karke aaya hoon, papa ko kaise bataun",
+    ]),
+
     # ---------------- GOOD NEWS AT THE HOSPITAL ----------------
     (["happy"], [
         "my sister gave birth to a healthy baby in the hospital",
