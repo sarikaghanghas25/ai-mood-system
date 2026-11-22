@@ -58,12 +58,11 @@ const MOOD_META = {
 };
 
 /*
- * Look and words of the app for the latest mood.
- * colors: three gradient stops, a soft background and a text colour.
+ * Words and emoji of the dashboard for the latest mood.
+ * (Colours stay the same for every mood.)
  */
 const MOOD_THEME = {
   happy: {
-    colors: ["#e07b00", "#f0932b", "#f6b143", "#fff3dc", "#b5651d"],
     sky: "☀️",
     title: "You're glowing today!",
     subtitle: "Keep this energy going and share the joy.",
@@ -73,7 +72,6 @@ const MOOD_THEME = {
     side: { kicker: "Keep it up", title: ["spread the", "good vibes 💛"], note: "Your energy is contagious!" },
   },
   sad: {
-    colors: ["#3b6fd8", "#5b8def", "#8db3f5", "#e4eeff", "#3f63b8"],
     sky: "🌧️",
     title: "It's okay to feel low.",
     subtitle: "Be gentle with yourself today. You're not alone in this.",
@@ -83,7 +81,6 @@ const MOOD_THEME = {
     side: { kicker: "One small step", title: ["towards feeling", "better 💙"], note: "Talk to your AI Companion" },
   },
   angry: {
-    colors: ["#0f8f7e", "#23a594", "#5cc5b0", "#dcf5ef", "#137a6b"],
     sky: "🍃",
     title: "Take a deep breath.",
     subtitle: "Your feelings are valid. Let's cool down before reacting.",
@@ -93,7 +90,6 @@ const MOOD_THEME = {
     side: { kicker: "Cool down", title: ["one breath", "at a time 🍃"], note: "Vent to your AI Companion" },
   },
   tired: {
-    colors: ["#4b4f9c", "#6b6fb8", "#9a9ed6", "#eceefb", "#5559a3"],
     sky: "🌙",
     title: "Time to slow down.",
     subtitle: "Rest isn't lazy. Your body and mind need a recharge.",
@@ -103,7 +99,6 @@ const MOOD_THEME = {
     side: { kicker: "Go easy", title: ["rest is part", "of progress 🌙"], note: "Take a short break" },
   },
   anxious: {
-    colors: ["#1f8fb3", "#3fa9c9", "#7cc8dd", "#dff3f9", "#1d7a98"],
     sky: "🫧",
     title: "You're safe right now.",
     subtitle: "Slow breaths. Focus on what you can control today.",
@@ -113,7 +108,6 @@ const MOOD_THEME = {
     side: { kicker: "Ground yourself", title: ["focus on what", "you can control 🫧"], note: "Talk it through with your AI Companion" },
   },
   stressed: {
-    colors: ["#2e8b57", "#46a86c", "#7cc795", "#e2f5e9", "#2e7d4f"],
     sky: "🌿",
     title: "One thing at a time.",
     subtitle: "You don't have to do it all at once. Take a break when you need it.",
@@ -123,7 +117,6 @@ const MOOD_THEME = {
     side: { kicker: "Slow down", title: ["small steps", "still count 🌿"], note: "Take a 5-minute break" },
   },
   neutral: {
-    colors: ["#3173f1", "#5f76ee", "#8b9ff8", "#e6eeff", "#5178db"],
     sky: "☀️",
     title: "Welcome Back!",
     subtitle: "Your emotions matter. Let's make today better.",
@@ -137,15 +130,6 @@ const MOOD_THEME = {
 const moodTheme = (mood) =>
   MOOD_THEME[String(mood || "").toLowerCase()] ||
   MOOD_THEME.neutral;
-
-// CSS variables the stylesheet uses for every mood-coloured surface
-const moodThemeStyle = (theme) => ({
-  "--mood-1": theme.colors[0],
-  "--mood-2": theme.colors[1],
-  "--mood-3": theme.colors[2],
-  "--mood-soft": theme.colors[3],
-  "--mood-ink": theme.colors[4],
-});
 
 const timeGreeting = () => {
   const hour = new Date().getHours();
@@ -1172,7 +1156,7 @@ function App() {
     dashboard?.latest_mood ||
     "—";
 
-  // Colours and words of the app follow the latest mood
+  // Dashboard words and emoji follow the latest mood
   const theme = moodTheme(latestMood);
 
   const latestConfidence =
@@ -1573,10 +1557,7 @@ function App() {
    */
 
   return (
-    <div
-      className="app-shell"
-      style={moodThemeStyle(theme)}
-    >
+    <div className="app-shell">
       {mobileMenu && (
         <div
           className="mobile-overlay"

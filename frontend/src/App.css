@@ -8,13 +8,6 @@
   --white: #ffffff;
   --bg: #f4f7ff;
   --shadow: 0 12px 35px rgba(57, 82, 160, 0.08);
-
-  /* Mood colours; App.jsx overrides these for the latest mood */
-  --mood-1: #3173f1;
-  --mood-2: #5f76ee;
-  --mood-3: #8b9ff8;
-  --mood-soft: #e6eeff;
-  --mood-ink: #5178db;
 }
 
 * {
@@ -438,10 +431,10 @@ button:disabled {
   color: white;
   background: linear-gradient(
     135deg,
-    var(--mood-2),
-    var(--mood-3)
+    #5481f7,
+    #7295fa
   );
-  box-shadow: 0 9px 20px rgba(40, 50, 90, 0.18);
+  box-shadow: 0 9px 20px rgba(76, 112, 234, 0.22);
 }
 
 .sidebar-bottom {
@@ -450,10 +443,15 @@ button:disabled {
 
 .motivation-card {
   padding: 19px;
-  border: 1px solid var(--mood-3);
+  border: 1px solid #c8dcff;
   border-radius: 15px;
-  background: var(--mood-soft);
-  color: var(--mood-ink);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(236, 247, 255, 0.95),
+      rgba(218, 238, 255, 0.9)
+    );
+  color: #5178db;
 }
 
 .motivation-card span {
@@ -470,7 +468,7 @@ button:disabled {
 .motivation-card small {
   display: block;
   margin-top: 17px;
-  color: var(--mood-ink);
+  color: #6577b1;
   font-size: 11px;
 }
 
@@ -641,11 +639,11 @@ button:disabled {
     ),
     linear-gradient(
       115deg,
-      var(--mood-1),
-      var(--mood-2) 55%,
-      var(--mood-3)
+      #3173f1,
+      #5f76ee 55%,
+      #8b9ff8
     );
-  box-shadow: 0 15px 30px rgba(40, 50, 90, 0.15);
+  box-shadow: 0 15px 30px rgba(66, 94, 200, 0.17);
 }
 
 .hero-content {
@@ -702,12 +700,12 @@ button:disabled {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--mood-ink);
+  color: #526de7;
   font-size: 43px;
   background: linear-gradient(
     145deg,
     #ffffff,
-    var(--mood-soft)
+    #dfe8ff
   );
   box-shadow: 0 15px 35px rgba(38, 64, 165, 0.18);
 }
@@ -956,8 +954,8 @@ button:disabled {
   color: white;
   background: linear-gradient(
     135deg,
-    var(--mood-1),
-    var(--mood-2)
+    #4f6fff,
+    #7659e9
   );
   box-shadow: 0 8px 18px rgba(75, 91, 222, 0.2);
 }
@@ -998,11 +996,11 @@ button:disabled {
     ),
     linear-gradient(
       120deg,
-      var(--mood-1),
-      var(--mood-2) 50%,
-      var(--mood-3)
+      #4236d8,
+      #5d5de8 50%,
+      #7187f4
     );
-  box-shadow: 0 18px 35px rgba(40, 50, 90, 0.18);
+  box-shadow: 0 18px 35px rgba(72, 65, 205, 0.2);
 }
 
 .result-left,
@@ -1660,10 +1658,10 @@ button:disabled {
     ),
     linear-gradient(
       140deg,
-      var(--mood-1),
-      var(--mood-3)
+      #5966e8,
+      #9b76ec
     );
-  box-shadow: 0 15px 28px rgba(40, 50, 90, 0.15);
+  box-shadow: 0 15px 28px rgba(88, 90, 207, 0.17);
 }
 
 .side-motivation::after {
