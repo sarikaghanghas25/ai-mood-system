@@ -339,6 +339,16 @@ function useRevealOnScroll() {
   }, []);
 }
 
+// One-tap feelings above the mood box
+const QUICK_MOODS = [
+  { mood: "happy", emoji: "😊", label: "Happy", starter: "I'm feeling happy today because " },
+  { mood: "sad", emoji: "😔", label: "Sad", starter: "I'm feeling low today because " },
+  { mood: "angry", emoji: "😡", label: "Angry", starter: "I'm really annoyed because " },
+  { mood: "tired", emoji: "😴", label: "Tired", starter: "I'm feeling exhausted because " },
+  { mood: "anxious", emoji: "😟", label: "Anxious", starter: "I'm feeling nervous about " },
+  { mood: "stressed", emoji: "😰", label: "Stressed", starter: "I'm stressed because " },
+];
+
 // Emojis that circle the hero planet
 const ORBIT_EMOJIS = ["😊", "😔", "😡", "😴", "😟", "😰"];
 
@@ -1776,6 +1786,21 @@ function App() {
   const [text, setText] = useState("");
 
   const speech = useSpeechInput(text, setText);
+
+  const textareaRef = useRef(null);
+
+  // One-tap feeling: write a starter line and let the user finish it
+  const startWithMood = (starter) => {
+    setText(starter);
+
+    requestAnimationFrame(() => {
+      const box = textareaRef.current;
+      if (!box) return;
+
+      box.focus();
+      box.setSelectionRange(starter.length, starter.length);
+    });
+  };
 
   const [loading, setLoading] = useState(false);
 
@@ -3610,7 +3635,11 @@ function App() {
           )}
 
           <div className="dashboard-layout">
-            <div className="dashboard-main">
+            {/* Re-keyed per page so each page slides in */}
+            <div
+              className="dashboard-main page-enter"
+              key={activeSection}
+            >
               {/* =================================================
                   STATS
               ================================================== */}
@@ -3689,10 +3718,39 @@ function App() {
                   thoughts or emotions.
                 </p>
 
+                <div
+                  className="quick-moods"
+                  aria-label="Start with a feeling"
+                >
+                  {QUICK_MOODS.map(
+                    (item) => (
+                      <button
+                        type="button"
+                        key={item.mood}
+                        title={item.label}
+                        onClick={() =>
+                          startWithMood(
+                            item.starter
+                          )
+                        }
+                      >
+                        <span>
+                          {item.emoji}
+                        </span>
+
+                        <small>
+                          {item.label}
+                        </small>
+                      </button>
+                    )
+                  )}
+                </div>
+
                 <div className="textarea-wrapper">
                   <span>🤖</span>
 
                   <textarea
+                    ref={textareaRef}
                     value={text}
                     onChange={(event) =>
                       setText(
