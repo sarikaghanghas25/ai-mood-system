@@ -281,7 +281,7 @@ const REVEAL_SELECTOR = [
   ".insights-section",
   ".chart-card",
   ".history-section",
-  ".quick-actions-card",
+  ".today-card",
   ".activity-card",
   ".side-motivation",
 ].join(",");
@@ -610,17 +610,178 @@ function StatCard({
   );
 }
 
-function QuickAction({ icon, text, onClick }) {
+const SELF_CARE = [
+  { id: "water", icon: "💧", text: "Drink a glass of water" },
+  { id: "breathe", icon: "🌬️", text: "1 minute of slow breathing" },
+  { id: "walk", icon: "🚶", text: "A short walk or stretch" },
+  { id: "kind", icon: "💌", text: "Say something kind to someone" },
+  { id: "screen", icon: "📵", text: "10 minutes away from screens" },
+];
+
+const selfCareKey = () => `self_care_${dayKey(new Date())}`;
+
+/*
+ * "Today" card for the right panel: streak, today's check-ins, latest
+ * mood, a strip of the last 7 days and a small self-care checklist that
+ * resets every day.
+ */
+function TodayCard({ history, latestMood, onCheckIn }) {
+  const { week, todayCount, streak } = useMemo(() => {
+    const byDay = moodsByDay(history);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = dayKey(today);
+
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - index));
+
+      const counts = byDay[dayKey(date)];
+      const top = counts
+        ? Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+        : null;
+
+      return { date, top, isToday: index === 6 };
+    });
+
+    return {
+      week: days,
+      todayCount: (history || []).filter((item) => {
+        const date = parseServerDate(item.created_at || item.timestamp || item.date);
+        return date && dayKey(date) === todayKey;
+      }).length,
+      streak: currentStreak(byDay),
+    };
+  }, [history]);
+
+  const [done, setDone] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(selfCareKey()) || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleCare = (id) => {
+    setDone((current) => {
+      const next = current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
+
+      try {
+        localStorage.setItem(selfCareKey(), JSON.stringify(next));
+      } catch {
+        // Not saved; the checklist still works for this visit
+      }
+
+      return next;
+    });
+  };
+
+  const latest = latestMood && latestMood !== "—" ? moodInfo(latestMood) : null;
+  const progress = done.length / SELF_CARE.length;
+  const ringLength = 2 * Math.PI * 21;
+
   return (
-    <button
-      type="button"
-      className="quick-action"
-      onClick={onClick}
-    >
-      <span>{icon}</span>
-      <span>{text}</span>
-      <b>›</b>
-    </button>
+    <div className="today-card">
+      <div className="today-heading">
+        <div>
+          <small>Today</small>
+          <strong>
+            {new Date().toLocaleDateString([], {
+              weekday: "long",
+              day: "numeric",
+              month: "short",
+            })}
+          </strong>
+        </div>
+
+        <span className={`today-flame ${streak > 0 ? "is-hot" : ""}`}>
+          🔥 {streak}
+        </span>
+      </div>
+
+      <div className="today-stats">
+        <div>
+          <span>✅</span>
+          <strong>{todayCount}</strong>
+          <small>check-ins today</small>
+        </div>
+
+        <div>
+          <span>{latest ? latest.emoji : "🌱"}</span>
+          <strong>{latest ? latest.label : "—"}</strong>
+          <small>latest mood</small>
+        </div>
+      </div>
+
+      <div className="today-week" aria-label="Last 7 days">
+        {week.map((day) => (
+          <div
+            key={dayKey(day.date)}
+            className={`today-day ${day.top ? "has-mood" : ""} ${
+              day.isToday ? "is-today" : ""
+            }`}
+            title={
+              day.top
+                ? `${day.date.toLocaleDateString([], { weekday: "long" })}: ${moodInfo(day.top).label}`
+                : day.date.toLocaleDateString([], { weekday: "long" })
+            }
+          >
+            <span>{day.top ? moodInfo(day.top).emoji : ""}</span>
+            <small>
+              {day.date.toLocaleDateString([], { weekday: "narrow" })}
+            </small>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" className="today-button" onClick={onCheckIn}>
+        {todayCount > 0 ? "✨ Check in again" : "✨ Check in now"}
+      </button>
+
+      <div className="self-care">
+        <div className="self-care-heading">
+          <div>
+            <strong>Self-care today</strong>
+            <small>
+              {done.length === SELF_CARE.length
+                ? "All done, proud of you 💛"
+                : `${done.length} of ${SELF_CARE.length} done`}
+            </small>
+          </div>
+
+          <svg viewBox="0 0 50 50" className="self-care-ring" aria-hidden="true">
+            <circle cx="25" cy="25" r="21" />
+            <circle
+              cx="25"
+              cy="25"
+              r="21"
+              className="self-care-ring-fill"
+              strokeDasharray={ringLength}
+              strokeDashoffset={ringLength * (1 - progress)}
+            />
+            <text x="25" y="29">{Math.round(progress * 100)}%</text>
+          </svg>
+        </div>
+
+        {SELF_CARE.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`self-care-item ${done.includes(item.id) ? "is-done" : ""}`}
+            onClick={() => toggleCare(item.id)}
+            aria-pressed={done.includes(item.id)}
+          >
+            <span className="self-care-check">
+              {done.includes(item.id) ? "✓" : ""}
+            </span>
+            <span>{item.icon}</span>
+            <span>{item.text}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -5224,70 +5385,16 @@ function App() {
             ================================================== */}
 
             <aside className="right-sidebar">
-              <div className="quick-actions-card">
-                <div className="right-card-heading">
-                  <span>⚡</span>
-
-                  <h3>
-                    Quick Actions
-                  </h3>
-                </div>
-
-                <QuickAction
-                  icon="🧠"
-                  text="Analyze My Mood"
-                  onClick={() =>
-                    navigateTo(
-                      "mood-analysis",
-                      "analyzer"
-                    )
-                  }
-                />
-
-                <QuickAction
-                  icon="💬"
-                  text="Talk to AI Companion"
-                  onClick={() =>
-                    navigateTo(
-                      "chatbot",
-                      "chatbot"
-                    )
-                  }
-                />
-
-                <QuickAction
-                  icon="💡"
-                  text="Get Recommendations"
-                  onClick={() =>
-                    navigateTo(
-                      "recommendations",
-                      "recommendations"
-                    )
-                  }
-                />
-
-                <QuickAction
-                  icon="◷"
-                  text="View Mood History"
-                  onClick={() =>
-                    navigateTo(
-                      "history",
-                      "history"
-                    )
-                  }
-                />
-
-                <QuickAction
-                  icon="📊"
-                  text="Check Statistics"
-                  onClick={() =>
-                    navigateTo(
-                      "statistics",
-                      "statistics"
-                    )
-                  }
-                />
-              </div>
+              <TodayCard
+                history={history}
+                latestMood={latestMood}
+                onCheckIn={() =>
+                  navigateTo(
+                    "mood-analysis",
+                    "analyzer"
+                  )
+                }
+              />
 
               <div className="activity-card">
                 <div className="right-card-heading">
