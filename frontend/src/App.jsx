@@ -1875,6 +1875,37 @@ function App() {
   const [activeSection, setActiveSection] =
     useState("dashboard");
 
+  // Each sidebar item is its own page instead of one very long scroll
+  const PAGE_PARTS = {
+    dashboard: ["hero", "stats", "analyzer", "result", "explore"],
+    "mood-analysis": ["analyzer", "result"],
+    chatbot: ["chatbot"],
+    recommendations: ["result"],
+    history: ["history"],
+    calendar: ["calendar", "achievements"],
+    statistics: ["statistics", "probabilities", "trend"],
+    insights: ["insights"],
+    profile: ["profile"],
+    settings: ["settings"],
+  };
+
+  const show = (part) => {
+    const parts =
+      PAGE_PARTS[activeSection] ||
+      PAGE_PARTS.dashboard;
+
+    // Recommendations page with no result yet: let the user analyze there
+    if (
+      part === "analyzer" &&
+      activeSection === "recommendations" &&
+      !result
+    ) {
+      return true;
+    }
+
+    return parts.includes(part);
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
 
   /*
@@ -2253,8 +2284,7 @@ function App() {
 
       await loadDashboardData();
 
-      setActiveSection("mood-result");
-
+      // Stay on the current page (it shows the result) and scroll to it
       setTimeout(() => {
         scrollToSection(
           "mood-result"
@@ -2477,11 +2507,18 @@ function App() {
     section,
     elementId
   ) => {
+    const samePage = section === activeSection;
+
     setActiveSection(section);
 
-    scrollToSection(elementId);
-
     setMobileMenu(false);
+
+    // Same page: jump to the part; new page: start at its top
+    if (samePage) {
+      scrollToSection(elementId);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   /*
@@ -3492,6 +3529,7 @@ function App() {
               HERO
           ================================================== */}
 
+          {show("hero") && (
           <section className="hero-banner">
             <div className="hero-content">
               <span>
@@ -3569,6 +3607,7 @@ function App() {
               </span>
             </div>
           </section>
+          )}
 
           <div className="dashboard-layout">
             <div className="dashboard-main">
@@ -3576,6 +3615,7 @@ function App() {
                   STATS
               ================================================== */}
 
+              {show("stats") && (
               <section className="stats-grid">
                 <StatCard
                   icon="😊"
@@ -3623,11 +3663,13 @@ function App() {
                   className="stat-green"
                 />
               </section>
+              )}
 
               {/* =================================================
                   MOOD ANALYZER
               ================================================== */}
 
+              {show("analyzer") && (
               <section
                 className="analyzer-card"
                 id="analyzer"
@@ -3735,11 +3777,13 @@ function App() {
                   </div>
                 )}
               </section>
+              )}
 
               {/* =================================================
                   AI COMPANION CHATBOT
               ================================================== */}
 
+              {show("chatbot") && (
               <section
                 className="chatbot-section"
                 id="chatbot"
@@ -3929,12 +3973,13 @@ function App() {
                   </div>
                 </div>
               </section>
+              )}
 
               {/* =================================================
                   MOOD RESULT
               ================================================== */}
 
-              {result && (
+              {show("result") && result && (
                 <section
                   className="mood-result-section"
                   id="mood-result"
@@ -4237,14 +4282,84 @@ function App() {
                   MOOD CALENDAR
               ================================================== */}
 
-              <MoodCalendar history={history} />
+              {/* Shortcuts to the other pages, so nothing feels hidden */}
+              {show("explore") && (
+                <section className="explore-section">
+                  <h2>Explore more ✨</h2>
 
+                  <p>
+                    Everything else lives
+                    on its own page.
+                  </p>
+
+                  <div className="explore-grid">
+                    {[
+                      ["💬", "AI Companion", "Talk about how you feel", "chatbot", "chatbot"],
+                      ["💡", "Recommendations", "Music, movies and activities", "recommendations", "recommendations"],
+                      ["📅", "Calendar & Badges", "Your streak and achievements", "calendar", "mood-calendar"],
+                      ["📊", "Statistics", "Distribution and mood trend", "statistics", "statistics"],
+                      ["✨", "Smart Insights", "What the AI noticed", "insights", "smart-insights"],
+                      ["◷", "Mood History", "Every check-in in one place", "history", "history"],
+                    ].map(
+                      (
+                        [
+                          icon,
+                          title,
+                          subtitle,
+                          page,
+                          target,
+                        ],
+                        index
+                      ) => (
+                        <button
+                          type="button"
+                          key={page}
+                          className="explore-tile"
+                          style={{
+                            "--i": index,
+                          }}
+                          onClick={() =>
+                            navigateTo(
+                              page,
+                              target
+                            )
+                          }
+                        >
+                          <span className="explore-icon">
+                            {icon}
+                          </span>
+
+                          <span>
+                            <strong>
+                              {title}
+                            </strong>
+
+                            <small>
+                              {subtitle}
+                            </small>
+                          </span>
+
+                          <b>›</b>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {show("calendar") && (
+              <MoodCalendar history={history} />
+              )}
+
+              {show("achievements") && (
               <Achievements history={history} />
+              )}
 
               {/* =================================================
                   SMART MOOD INSIGHTS
               ================================================== */}
 
+              {show("insights") && (
               <section
                 className="insights-section"
                 id="smart-insights"
@@ -4424,11 +4539,13 @@ function App() {
                   </p>
                 </div>
               </section>
+              )}
 
               {/* =================================================
                   STATISTICS
               ================================================== */}
 
+              {show("statistics") && (
               <section
                 className="chart-card"
                 id="statistics"
@@ -4608,11 +4725,13 @@ function App() {
                   <EmptyState text="Mood distribution will appear after you analyze some moods." />
                 )}
               </section>
+              )}
 
               {/* =================================================
                   LATEST AI PROBABILITIES
               ================================================== */}
 
+              {show("probabilities") && (
               <section className="chart-card">
                 <div className="section-heading">
                   <div>
@@ -4707,11 +4826,13 @@ function App() {
                   <EmptyState text="Analyze your mood to see AI probability data." />
                 )}
               </section>
+              )}
 
               {/* =================================================
                   MOOD TREND
               ================================================== */}
 
+              {show("trend") && (
               <section className="chart-card">
                 <div className="section-heading">
                   <div>
@@ -4740,11 +4861,13 @@ function App() {
                   data={trendData}
                 />
               </section>
+              )}
 
               {/* =================================================
                   MOOD HISTORY
               ================================================== */}
 
+              {show("history") && (
               <section
                 className="history-section"
                 id="history"
@@ -4895,11 +5018,13 @@ function App() {
                   )}
                 </div>
               </section>
+              )}
 
               {/* =================================================
                   PROFILE
               ================================================== */}
 
+              {show("profile") && (
               <section
                 className="history-section"
                 id="profile"
@@ -4966,11 +5091,13 @@ function App() {
                   </div>
                 </div>
               </section>
+              )}
 
               {/* =================================================
                   SETTINGS
               ================================================== */}
 
+              {show("settings") && (
               <section
                 className="history-section"
                 id="settings"
@@ -5031,6 +5158,7 @@ function App() {
                   </div>
                 </div>
               </section>
+              )}
             </div>
 
             {/* =================================================
