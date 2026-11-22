@@ -17,6 +17,7 @@ import {
 import { SOUNDS, ambientMusic } from "./ambientMusic";
 import "./App.css";
 import "./polish.css";
+import "./dark.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -1410,12 +1411,12 @@ function EmojiDot({ cx, cy, payload, showEmoji }) {
   if (cx == null || cy == null) return null;
 
   if (!showEmoji) {
-    return <circle cx={cx} cy={cy} r={4} fill="#fff" stroke="#6654ed" strokeWidth={2} />;
+    return <circle cx={cx} cy={cy} r={4} className="chart-dot-bg" fill="#fff" stroke="#6654ed" strokeWidth={2} />;
   }
 
   return (
     <g className="trend-dot">
-      <circle cx={cx} cy={cy} r={13} fill="#fff" stroke="#c9d3ff" strokeWidth={2} />
+      <circle cx={cx} cy={cy} r={13} className="chart-dot-bg" fill="#fff" stroke="#c9d3ff" strokeWidth={2} />
       <text x={cx} y={cy + 5} textAnchor="middle" fontSize="14">
         {moodInfo(payload.mood).emoji}
       </text>
@@ -1968,6 +1969,25 @@ function App() {
   const [error, setError] = useState("");
 
   const [result, setResult] = useState(null);
+
+  // Light or dark, remembered per browser
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem("theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    document.body.classList.toggle("dark-mode", darkMode);
+
+    try {
+      localStorage.setItem("theme", darkMode ? "dark" : "light");
+    } catch {
+      // Not remembered; the theme still applies for this visit
+    }
+  }, [darkMode]);
 
   // Soft background music with the recommendations (remembered per browser)
   const [musicOn, setMusicOn] = useState(() => {
@@ -3643,24 +3663,20 @@ function App() {
           <div className="topbar-actions">
             <button
               type="button"
-              className="icon-button"
-              onClick={() =>
-                document.body.classList.toggle(
-                  "light-mode"
-                )
-              }
+              className={`icon-button ${darkMode ? "" : "is-active"}`}
+              onClick={() => setDarkMode(false)}
+              aria-pressed={!darkMode}
+              title="Light mode"
             >
               ☀️
             </button>
 
             <button
               type="button"
-              className="icon-button"
-              onClick={() =>
-                document.body.classList.toggle(
-                  "dark-mode"
-                )
-              }
+              className={`icon-button ${darkMode ? "is-active" : ""}`}
+              onClick={() => setDarkMode(true)}
+              aria-pressed={darkMode}
+              title="Dark mode"
             >
               🌙
             </button>

@@ -2552,26 +2552,26 @@ body {
 }
 
 .today-stats > div {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  column-gap: 8px;
-  padding: 9px 10px;
+  gap: 2px;
+  padding: 10px 6px;
   border: 1px solid #e6ebfa;
   border-radius: 12px;
   background: #f8faff;
+  text-align: center;
 }
 
 .today-stats span {
-  grid-row: span 2;
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 1.2;
 }
 
 .today-stats strong {
-  overflow: hidden;
+  max-width: 100%;
   font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .today-stats small {
