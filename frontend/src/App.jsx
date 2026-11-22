@@ -304,9 +304,17 @@ function useRevealOnScroll() {
       { threshold: 0.12 }
     );
 
+    // Tracked per effect run (not by class), so a second run, e.g. React
+    // StrictMode in development, still watches every card
+    const watched = new WeakSet();
+
     const watchNew = () => {
       document.querySelectorAll(REVEAL_SELECTOR).forEach((element) => {
-        if (!element.classList.contains("reveal")) {
+        if (watched.has(element)) return;
+
+        watched.add(element);
+
+        if (!element.classList.contains("in-view")) {
           element.classList.add("reveal");
           observer.observe(element);
         }
@@ -322,6 +330,11 @@ function useRevealOnScroll() {
       observer.disconnect();
       mutations.disconnect();
       document.documentElement.classList.remove("reveal-ready");
+
+      // Never leave a card hidden after this hook stops
+      document
+        .querySelectorAll(".reveal")
+        .forEach((element) => element.classList.add("in-view"));
     };
   }, []);
 }
