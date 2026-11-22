@@ -30,7 +30,7 @@ import pandas as pd
 
 from mood_phrase_bank import (
     BETRAYED_AFTER_HELP, DEVANAGARI, DOMAIN_EVENTS, EMOJIS, EXTRA_NEUTRAL,
-    IDIOMS, KINDNESS, QUESTIONS,
+    IDIOMS, KINDNESS, OCCASIONS, QUESTIONS, RUINED_OCCASION,
 )
 
 
@@ -57,6 +57,7 @@ EVENTS_PER_GROUP = 45
 BANK_VARIANTS_PER_SENTENCE = 5
 CROSS_EVENT_COMBOS = 2000
 BETRAYED_AFTER_HELP_ROWS = 200
+RUINED_OCCASION_ROWS = 200
 EMOJI_ROWS = 900
 TYPO_FRACTION = 0.15
 
@@ -619,6 +620,18 @@ def bank_rows(rng):
 
         # Same number of plain kind acts, so "helped" alone stays happy
         rows.append(make_row(pick(rng, PREFIXES) + pick(rng, KINDNESS), ["happy"]))
+
+    # "There was a wedding, but the bride ran away" is sad + angry, not happy
+    for _ in range(RUINED_OCCASION_ROWS):
+        text = (
+            pick(rng, PREFIXES) + pick(rng, OCCASIONS)
+            + pick(rng, [" but ", " lekin ", " par ", " aur tabhi "])
+            + pick(rng, RUINED_OCCASION)
+        )
+        rows.append(make_row(text, ["sad", "angry"]))
+
+        # Same number of plain occasions, so "wedding" alone stays happy
+        rows.append(make_row(pick(rng, PREFIXES) + pick(rng, OCCASIONS), ["happy"]))
 
     for mood, idioms in IDIOMS.items():
         for idiom in idioms:

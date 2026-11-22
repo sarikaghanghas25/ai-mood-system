@@ -35,6 +35,27 @@ BETRAYED_AFTER_HELP = [
     "wahi ab mukar gaya", "usne meri hi shikayat kar di", "sabne mujhe hi galat bataya",
 ]
 
+# Happy occasions; reused by the builder for "it was a celebration, but it got ruined"
+OCCASIONS = [
+    "it was my birthday today", "we were celebrating diwali at home",
+    "it was my sister's wedding", "we had planned an engagement party",
+    "it was our anniversary dinner", "we threw a big party at home",
+    "today was my graduation day", "it was the first day of our family trip",
+    "aaj hamare ghar mein shaadi hai", "aaj bhai ki shaadi thi",
+    "aaj meri sagai thi", "ghar mein party rakhi thi", "aaj mera birthday tha",
+    "hum sab diwali mana rahe the", "aaj hamari anniversary thi",
+]
+
+# What ruined the occasion. Combined with OCCASIONS and labelled sad + angry only
+RUINED_OCCASION = [
+    "the bride ran away", "the groom never showed up", "the wedding got called off",
+    "my parents had a huge fight in front of everyone", "nobody showed up",
+    "the relatives created a big scene", "someone ruined everything",
+    "dulhan bhaag gayi", "dulha aaya hi nahi", "shaadi toot gayi",
+    "rishtedaaron ne bahut tamasha kiya", "sabke saamne bahut bada jhagda ho gaya",
+    "koi aaya hi nahi", "kisi ne sab barbaad kar diya",
+]
+
 # (moods, sentences): things that happen, mostly without emotion words
 DOMAIN_EVENTS = [
     # ---------------- WORK ----------------
