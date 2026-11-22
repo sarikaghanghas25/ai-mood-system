@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -16,6 +16,7 @@ import {
 } from "recharts";
 
 import "./App.css";
+import "./polish.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -231,6 +232,123 @@ function scrollToSection(id) {
   }
 }
 
+/*
+ * Numbers count up when they change ("142" or "96%"); anything else
+ * (like "Sad") is shown as it is.
+ */
+function AnimatedValue({ value }) {
+  const match = String(value ?? "").match(/^(\d+(?:\.\d+)?)(%?)$/);
+  const target = match ? Number(match[1]) : null;
+  const [shown, setShown] = useState(target ?? 0);
+  const shownRef = useRef(shown);
+
+  useEffect(() => {
+    if (target === null) return undefined;
+
+    const start = shownRef.current;
+    const startTime = performance.now();
+    const duration = 900;
+    let frame;
+
+    const step = (now) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      const next = start + (target - start) * eased;
+
+      shownRef.current = next;
+      setShown(next);
+
+      if (progress < 1) frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
+  if (target === null) return value;
+
+  return `${Math.round(shown)}${match[2]}`;
+}
+
+/*
+ * Cards slide in as they scroll into view. Re-checks the page when
+ * new cards appear (e.g. a mood result).
+ */
+const REVEAL_SELECTOR = [
+  ".stat-card",
+  ".analyzer-card",
+  ".chatbot-section",
+  ".insights-section",
+  ".chart-card",
+  ".history-section",
+  ".quick-actions-card",
+  ".activity-card",
+  ".side-motivation",
+].join(",");
+
+function useRevealOnScroll() {
+  useEffect(() => {
+    if (!("IntersectionObserver" in window)) return undefined;
+
+    document.documentElement.classList.add("reveal-ready");
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in-view");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12 }
+    );
+
+    const watchNew = () => {
+      document.querySelectorAll(REVEAL_SELECTOR).forEach((element) => {
+        if (!element.classList.contains("reveal")) {
+          element.classList.add("reveal");
+          observer.observe(element);
+        }
+      });
+    };
+
+    watchNew();
+
+    const mutations = new MutationObserver(watchNew);
+    mutations.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutations.disconnect();
+      document.documentElement.classList.remove("reveal-ready");
+    };
+  }, []);
+}
+
+// Placeholder that cycles through example feelings
+const ANALYZER_EXAMPLES = [
+  "Tell me what's on your mind...",
+  "e.g. I got the internship but I'm nervous about the first day",
+  "e.g. aaj bahut thak gayi hoon, kaam khatam hi nahi ho raha",
+  "e.g. meri best friend mujhse baat nahi kar rahi",
+  "e.g. I finally finished my project and I feel amazing!",
+];
+
+function useRotatingText(texts, interval = 3500) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => setIndex((current) => (current + 1) % texts.length),
+      interval
+    );
+    return () => clearInterval(timer);
+  }, [texts, interval]);
+
+  return texts[index];
+}
+
 function StatCard({
   icon,
   title,
@@ -245,7 +363,9 @@ function StatCard({
       <div className="stat-content">
         <span>{title}</span>
 
-        <strong>{value}</strong>
+        <strong>
+          <AnimatedValue value={value} />
+        </strong>
 
         {subtitle && <small>{subtitle}</small>}
       </div>
@@ -309,6 +429,11 @@ function EmptyState({ text }) {
 }
 
 function App() {
+  useRevealOnScroll();
+
+  const analyzerPlaceholder =
+    useRotatingText(ANALYZER_EXAMPLES);
+
   const [token, setToken] = useState(
     () => localStorage.getItem("access_token") || ""
   );
@@ -2056,7 +2181,9 @@ function App() {
                     onKeyDown={
                       handleKeyDown
                     }
-                    placeholder="Tell me what's on your mind..."
+                    placeholder={
+                      analyzerPlaceholder
+                    }
                   />
                 </div>
 
@@ -2460,6 +2587,14 @@ function App() {
                               )}
                               %
                             </b>
+
+                            <i className="probability-bar">
+                              <em
+                                style={{
+                                  width: `${item.value}%`,
+                                }}
+                              />
+                            </i>
                           </div>
                         )
                       )}
