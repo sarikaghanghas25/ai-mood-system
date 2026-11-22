@@ -1985,6 +1985,17 @@ function App() {
 
       {
         keywords: [
+          "calendar",
+          "streak",
+          "journey",
+          "days",
+        ],
+        section: "calendar",
+        id: "mood-calendar",
+      },
+
+      {
+        keywords: [
           "statistics",
           "statistic",
           "stats",
@@ -2667,6 +2678,26 @@ function App() {
             <span>◷</span>
 
             Mood History
+          </button>
+
+          <button
+            type="button"
+            className={`nav-item ${
+              activeSection ===
+              "calendar"
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              navigateTo(
+                "calendar",
+                "mood-calendar"
+              )
+            }
+          >
+            <span>📅</span>
+
+            Mood Calendar
           </button>
 
           <button
