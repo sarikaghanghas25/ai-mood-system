@@ -845,6 +845,48 @@ body.dark-mode .self-care-check {
   border: 1.5px solid #2b345a;
 }
 
+body.dark-mode .breathing-more {
+  color: #5c76e2;
+}
+
+body.dark-mode .mood-garden {
+  background: #1c1f2c;
+}
+
+body.dark-mode .garden-kicker {
+  color: #5c76e2;
+}
+
+body.dark-mode .garden-counts {
+  background: #23381c;
+}
+
+body.dark-mode .garden-counts strong {
+  color: #a7debd;
+}
+
+body.dark-mode .garden-counts small {
+  color: #aec2b5;
+}
+
+body.dark-mode .garden-scene {
+  background: linear-gradient(180deg, #17263d 0%, #162639 55%, #1e3e18 100%);
+}
+
+body.dark-mode .garden-plot small {
+  color: #c4b8ac;
+}
+
+body.dark-mode .garden-legend span {
+  border: 1px dashed #2d3a58;
+}
+
+body.dark-mode .garden-legend .is-grown {
+  border-color: #2d5735;
+  background: #23381c;
+  color: #a7debd;
+}
+
 /* ---------- Hand-written ---------- */
 
 body.dark-mode {

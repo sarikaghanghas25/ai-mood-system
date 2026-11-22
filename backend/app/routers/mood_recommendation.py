@@ -7,7 +7,11 @@ from app.schemas.mood_recommendation import (
     MoodRecommendationRequest
 )
 from app.services.mood_ai import (
-    detect_mood_with_ai
+    detect_mood_with_ai,
+    normalize_text
+)
+from app.services.mood_explain import (
+    explain_words
 )
 from app.services.recommendation_engine import (
     get_recommendations
@@ -63,5 +67,11 @@ def mood_and_recommend(
         "explanation": ai_result["explanation"],
         "probabilities": ai_result["probabilities"],
         "related_emotions": ai_result["related_emotions"],
+        # Which words led to each mood, for highlighting in the result
+        "highlights": explain_words(
+            request.text,
+            ai_result["moods"],
+            normalize_text
+        ),
         "recommendations": recommendations
     }

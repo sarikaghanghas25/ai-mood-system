@@ -283,6 +283,7 @@ const REVEAL_SELECTOR = [
   ".chart-card",
   ".history-section",
   ".today-card",
+  ".mood-garden",
   ".activity-card",
   ".side-motivation",
 ].join(",");
@@ -447,33 +448,284 @@ const BREATH_STEPS = [
 
 const BREATH_ROUNDS = 4;
 
-function BreathingCard() {
-  const [step, setStep] = useState(-1);
+// Patterns for the full guided session; seconds per phase
+const BREATH_PATTERNS = {
+  calm: {
+    label: "Calm",
+    hint: "Box breathing · 4-4-4-4",
+    steps: [
+      { phase: "in", label: "Breathe in", seconds: 4 },
+      { phase: "hold", label: "Hold", seconds: 4 },
+      { phase: "out", label: "Breathe out", seconds: 4 },
+      { phase: "rest", label: "Rest", seconds: 4 },
+    ],
+  },
+  relax: {
+    label: "Relax",
+    hint: "4-7-8 · for sleep and worry",
+    steps: [
+      { phase: "in", label: "Breathe in", seconds: 4 },
+      { phase: "hold", label: "Hold", seconds: 7 },
+      { phase: "out", label: "Breathe out slowly", seconds: 8 },
+    ],
+  },
+  quick: {
+    label: "Quick reset",
+    hint: "4-2-6 · when you're upset",
+    steps: [
+      { phase: "in", label: "Breathe in", seconds: 4 },
+      { phase: "hold", label: "Hold", seconds: 2 },
+      { phase: "out", label: "Breathe out", seconds: 6 },
+    ],
+  },
+};
+
+const BREATH_MINUTES = [1, 3, 5];
+
+// The breathing suggestion in the result: words and pattern per mood
+const BREATH_PROMPTS = {
+  tired: { pattern: "relax", title: "Feeling tired? A slow 4-7-8 breath helps you rest" },
+  sad: { pattern: "calm", title: "Feeling low? Breathe gently with me for a minute" },
+  anxious: { pattern: "relax", title: "Feeling anxious? Let's slow your breathing down" },
+  stressed: { pattern: "calm", title: "Feeling stressed? Box breathing clears the head" },
+  angry: { pattern: "quick", title: "Feeling angry? Cool down with a quick reset" },
+  happy: { pattern: "calm", title: "Feeling good? Make it last with a mindful minute" },
+  neutral: { pattern: "calm", title: "Take a calm minute just for yourself" },
+};
+
+/*
+ * Full-screen guided breathing: an orb that grows and shrinks with each
+ * breath, a countdown and a ring for the whole session, with an optional
+ * nature sound behind it.
+ */
+function BreathingSession({ initialPattern = "calm", onClose }) {
+  const [pattern, setPattern] = useState(initialPattern);
+  const [minutes, setMinutes] = useState(1);
+  const [withSound, setWithSound] = useState(true);
+  // "setup" -> "running" -> "done"
+  const [stage, setStage] = useState("setup");
+  const [elapsed, setElapsed] = useState(0);
+
+  const steps = BREATH_PATTERNS[pattern].steps;
+  const cycle = steps.reduce((sum, step) => sum + step.seconds, 0);
+  // Whole breaths only, so the session never stops mid-breath
+  const total = Math.max(1, Math.round((minutes * 60) / cycle)) * cycle;
 
   useEffect(() => {
-    if (step < 0) return undefined;
+    if (stage !== "running") return undefined;
 
-    if (step >= BREATH_STEPS.length * BREATH_ROUNDS) {
-      setStep(-1);
-      return undefined;
+    const timer = setInterval(() => {
+      setElapsed((value) => value + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage === "running" && elapsed >= total) setStage("done");
+  }, [elapsed, total, stage]);
+
+  // Nature sound only while breathing; silence otherwise, so the
+  // recommendations' sound doesn't play under the session
+  useEffect(() => {
+    if (stage === "running" && withSound) {
+      ambientMusic.play("neutral", pattern === "relax" ? "night" : "stream");
+    } else if (stage === "running") {
+      ambientMusic.stop();
     }
 
-    const current = BREATH_STEPS[step % BREATH_STEPS.length];
-    const timer = setTimeout(
-      () => setStep((value) => value + 1),
-      current.seconds * 1000
-    );
+    return () => ambientMusic.stop();
+  }, [stage, withSound, pattern]);
 
-    return () => clearTimeout(timer);
-  }, [step]);
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === "Escape") onClose();
+    };
 
-  const running = step >= 0;
-  const current = running
-    ? BREATH_STEPS[step % BREATH_STEPS.length]
-    : null;
-  const round = running
-    ? Math.floor(step / BREATH_STEPS.length) + 1
-    : 0;
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Where we are inside the current breath
+  let offset = elapsed % cycle;
+  let current = steps[0];
+  for (const step of steps) {
+    if (offset < step.seconds) {
+      current = step;
+      break;
+    }
+    offset -= step.seconds;
+  }
+  const secondsLeft = current.seconds - offset;
+
+  const start = () => {
+    ambientMusic.unlock();
+    setElapsed(0);
+    setStage("running");
+  };
+
+  const ringLength = 2 * Math.PI * 140;
+  const progress = Math.min(elapsed / total, 1);
+  const remaining = total - elapsed;
+
+  return createPortal(
+    <div className="breath-session" role="dialog" aria-modal="true" aria-label="Guided breathing">
+      <button type="button" className="breath-close" onClick={onClose} aria-label="Close">
+        ✕
+      </button>
+
+      {stage === "setup" && (
+        <div className="breath-setup">
+          <span className="breath-kicker">🫁 Guided breathing</span>
+          <h2>Let&apos;s slow down together</h2>
+          <p>Sit comfortably, relax your shoulders and follow the circle.</p>
+
+          <div className="breath-options">
+            {Object.entries(BREATH_PATTERNS).map(([key, item]) => (
+              <button
+                key={key}
+                type="button"
+                className={pattern === key ? "is-active" : ""}
+                onClick={() => setPattern(key)}
+              >
+                <strong>{item.label}</strong>
+                <small>{item.hint}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="breath-minutes">
+            {BREATH_MINUTES.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={minutes === value ? "is-active" : ""}
+                onClick={() => setMinutes(value)}
+              >
+                {value} min
+              </button>
+            ))}
+          </div>
+
+          <label className="breath-sound">
+            <input
+              type="checkbox"
+              checked={withSound}
+              onChange={(event) => setWithSound(event.target.checked)}
+            />
+            🎧 Nature sound in the background
+          </label>
+
+          <button type="button" className="breath-start" onClick={start}>
+            Begin
+          </button>
+        </div>
+      )}
+
+      {stage === "running" && (
+        <div className="breath-stage">
+          <div className="breath-orb-wrap">
+            <svg viewBox="0 0 300 300" className="breath-ring" aria-hidden="true">
+              <circle cx="150" cy="150" r="140" />
+              <circle
+                cx="150"
+                cy="150"
+                r="140"
+                className="breath-ring-fill"
+                strokeDasharray={ringLength}
+                strokeDashoffset={ringLength * (1 - progress)}
+              />
+            </svg>
+
+            <div
+              className={`breath-orb phase-${current.phase}`}
+              style={{ transitionDuration: `${current.seconds}s` }}
+            >
+              <strong>{secondsLeft}</strong>
+            </div>
+          </div>
+
+          <p className="breath-label" key={`${elapsed - offset}-${current.label}`}>
+            {current.label}
+          </p>
+
+          <small className="breath-left">
+            {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")} left
+          </small>
+
+          <button type="button" className="breath-stop" onClick={() => setStage("done")}>
+            Finish early
+          </button>
+        </div>
+      )}
+
+      {stage === "done" && (
+        <div className="breath-setup breath-done">
+          <span className="breath-done-icon">💙</span>
+          <h2>Well done</h2>
+          <p>
+            You breathed mindfully for{" "}
+            {elapsed >= 60
+              ? `${Math.round(elapsed / 60)} minute${Math.round(elapsed / 60) > 1 ? "s" : ""}`
+              : `${elapsed} seconds`}
+            . Notice how your body feels right now.
+          </p>
+
+          <div className="breath-done-actions">
+            <button type="button" className="breath-start" onClick={onClose}>
+              Back to my day
+            </button>
+            <button type="button" className="breath-again" onClick={() => setStage("setup")}>
+              Again
+            </button>
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
+
+function BreathingCard({ onOpenSession }) {
+  // Seconds since Start; null while stopped
+  const [elapsed, setElapsed] = useState(null);
+
+  const cycle = BREATH_STEPS.reduce((sum, step) => sum + step.seconds, 0);
+  const total = cycle * BREATH_ROUNDS;
+  const running = elapsed !== null;
+
+  useEffect(() => {
+    if (!running) return undefined;
+
+    const timer = setInterval(() => {
+      setElapsed((value) => (value === null ? null : value + 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [running]);
+
+  useEffect(() => {
+    if (elapsed !== null && elapsed >= total) setElapsed(null);
+  }, [elapsed, total]);
+
+  // Which phase we are in, and how many seconds it has left
+  let current = null;
+  let secondsLeft = 0;
+  let round = 0;
+
+  if (running) {
+    let offset = elapsed % cycle;
+    round = Math.floor(elapsed / cycle) + 1;
+
+    for (const step of BREATH_STEPS) {
+      if (offset < step.seconds) {
+        current = step;
+        secondsLeft = step.seconds - offset;
+        break;
+      }
+      offset -= step.seconds;
+    }
+  }
 
   return (
     <div className="breathing-card">
@@ -491,15 +743,30 @@ function BreathingCard() {
           current ? `phase-${current.phase}` : ""
         }`}
       >
-        <span>{current ? current.label : "🫧"}</span>
+        {current ? (
+          <span className="breathing-count">
+            <b>{secondsLeft}</b>
+            <small>{current.label}</small>
+          </span>
+        ) : (
+          <span>🫧</span>
+        )}
       </div>
 
       <button
         type="button"
         className="breathing-button"
-        onClick={() => setStep(running ? -1 : 0)}
+        onClick={() => setElapsed(running ? null : 0)}
       >
         {running ? "Stop" : "Start"}
+      </button>
+
+      <button
+        type="button"
+        className="breathing-more"
+        onClick={onOpenSession}
+      >
+        🫁 Full guided session ›
       </button>
     </div>
   );
@@ -608,6 +875,168 @@ function StatCard({
 
       <div className="stat-decoration" />
     </div>
+  );
+}
+
+/*
+ * The user's own sentence with the words that led to each mood
+ * underlined in that mood's colour (from the backend's "highlights").
+ */
+function WhyThisMood({ highlights }) {
+  const found = (highlights || []).filter((word) => word.mood);
+  if (found.length === 0) return null;
+
+  // Moods in the order their first word appears
+  const legend = [...new Set(found.map((word) => word.mood))];
+
+  return (
+    <div className="result-words">
+      <div className="result-words-heading">
+        <h3>🔍 Why this mood?</h3>
+        <p>The words that shaped the AI&apos;s answer. Hover one to see how much.</p>
+      </div>
+
+      <p className="result-words-text">
+        {highlights.map((word, index) => {
+          if (!word.mood) return <span key={index}>{word.text} </span>;
+
+          const info = moodInfo(word.mood);
+
+          return (
+            <span key={index}>
+              <mark
+                className="why-word"
+                style={{
+                  "--why-color": info.color,
+                  "--why-weight": 0.45 + word.weight * 0.55,
+                  animationDelay: `${0.25 + index * 0.04}s`,
+                }}
+                title={`${info.label} · ${Math.round(word.weight * 100)}% of the strongest signal`}
+              >
+                <small>{info.emoji}</small>
+                {word.text}
+              </mark>{" "}
+            </span>
+          );
+        })}
+      </p>
+
+      <div className="result-words-legend">
+        {legend.map((mood) => (
+          <span key={mood} style={{ "--why-color": moodInfo(mood).color }}>
+            <i />
+            {moodInfo(mood).emoji} {moodInfo(mood).label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Each mood grows its own plant; every feeling helps the garden grow
+const GARDEN = {
+  happy: { plant: "🌻", sky: "☀️", note: "a sunflower" },
+  neutral: { plant: "🌿", sky: "⛅", note: "a fern" },
+  sad: { plant: "🌷", sky: "🌧️", note: "a tulip, watered by the rain" },
+  tired: { plant: "🪴", sky: "🌙", note: "a resting plant" },
+  anxious: { plant: "🍀", sky: "🌫️", note: "a lucky clover" },
+  stressed: { plant: "🌾", sky: "🌬️", note: "wheat that bends but doesn't break" },
+  angry: { plant: "🌵", sky: "⛈️", note: "a tough little cactus" },
+};
+
+const GARDEN_DAYS = 14;
+
+/*
+ * The last two weeks as a garden: one plant per day with a check-in,
+ * chosen by that day's main mood and bigger with more check-ins.
+ */
+function MoodGarden({ history }) {
+  const days = useMemo(() => {
+    const byDay = moodsByDay(history);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: GARDEN_DAYS }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (GARDEN_DAYS - 1 - index));
+
+      const counts = byDay[dayKey(date)];
+      if (!counts) return { date, mood: null, size: 0 };
+
+      const [mood] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+
+      // 1 check-in: small, 2-3: grown, 4+: full bloom
+      return { date, mood, size: total >= 4 ? 3 : total >= 2 ? 2 : 1 };
+    });
+  }, [history]);
+
+  const planted = days.filter((day) => day.mood);
+  const kinds = new Set(planted.map((day) => day.mood));
+
+  const message =
+    planted.length === 0
+      ? "Check in to plant your first seed 🌱"
+      : planted.length >= 10
+        ? "Your garden is thriving. Look how much you've grown 💚"
+        : planted.length >= 5
+          ? "Your garden is filling up. Keep checking in 🌼"
+          : planted.length === 1
+            ? "Your first plant is growing. Every check-in plants something new"
+            : "A few sprouts already. Every check-in plants something new";
+
+  return (
+    <section className="mood-garden">
+      <div className="garden-heading">
+        <div>
+          <span className="garden-kicker">YOUR GARDEN</span>
+          <h2>Mood Garden</h2>
+          <p>{message}</p>
+        </div>
+
+        <div className="garden-counts">
+          <strong>{planted.length}</strong>
+          <small>{planted.length === 1 ? "plant" : "plants"}</small>
+          <strong>{kinds.size}</strong>
+          <small>{kinds.size === 1 ? "kind" : "kinds"}</small>
+        </div>
+      </div>
+
+      <div className="garden-scene">
+        <div className="garden-row">
+          {days.map((day, index) => {
+            const info = day.mood ? GARDEN[day.mood] || GARDEN.neutral : null;
+            const weekday = day.date.toLocaleDateString([], { weekday: "short" });
+
+            return (
+              <div
+                key={dayKey(day.date)}
+                className={`garden-plot size-${day.size}`}
+                style={{ animationDelay: `${index * 0.05}s` }}
+                title={
+                  info
+                    ? `${day.date.toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })}: ${moodInfo(day.mood).label}, ${info.note}`
+                    : `${weekday}: no check-in`
+                }
+              >
+                <span className="garden-sky">{info ? info.sky : ""}</span>
+                <span className="garden-plant">{info ? info.plant : "·"}</span>
+                <span className="garden-soil" />
+                <small>{day.date.getDate()}</small>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="garden-legend">
+        {Object.entries(GARDEN).map(([mood, info]) => (
+          <span key={mood} className={kinds.has(mood) ? "is-grown" : ""}>
+            {info.plant} {moodInfo(mood).label}
+          </span>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -2007,13 +2436,19 @@ function App() {
     }
   });
 
+  // Full-screen guided breathing (false, or the pattern to start with);
+  // it plays its own sound while open
+  const [breathingOpen, setBreathingOpen] = useState(false);
+
   useEffect(() => {
+    if (breathingOpen) return;
+
     if (result?.mood && musicOn) {
       ambientMusic.play(result.mood, soundChoice);
     } else {
       ambientMusic.stop();
     }
-  }, [result, musicOn, soundChoice]);
+  }, [result, musicOn, soundChoice, breathingOpen]);
 
   const chooseSound = (key) => {
     // The click itself lets the browser start audio
@@ -2088,7 +2523,7 @@ function App() {
     chatbot: ["chatbot"],
     recommendations: ["result"],
     history: ["history"],
-    calendar: ["calendar", "achievements"],
+    calendar: ["calendar", "garden", "achievements"],
     statistics: ["statistics", "probabilities", "trend"],
     insights: ["insights"],
     profile: ["profile"],
@@ -4399,6 +4834,43 @@ function App() {
                     </div>
                   </div>
 
+                  <WhyThisMood
+                    highlights={result.highlights}
+                  />
+
+                  {(() => {
+                    const prompt =
+                      BREATH_PROMPTS[
+                        result.mood
+                      ] ||
+                      BREATH_PROMPTS.neutral;
+
+                    return (
+                      <button
+                        type="button"
+                        className="result-breathe"
+                        onClick={() =>
+                          setBreathingOpen(
+                            prompt.pattern
+                          )
+                        }
+                      >
+                        <span>🫁</span>
+                        <span>
+                          <strong>
+                            {prompt.title}
+                          </strong>
+                          <small>
+                            A short guided
+                            session with calm
+                            nature sounds
+                          </small>
+                        </span>
+                        <b>Start ›</b>
+                      </button>
+                    );
+                  })()}
+
                   <div
                     className="result-recommendations"
                     id="recommendations"
@@ -4531,7 +5003,7 @@ function App() {
                     {[
                       ["💬", "AI Companion", "Talk about how you feel", "chatbot", "chatbot"],
                       ["💡", "Recommendations", "Music, movies and activities", "recommendations", "recommendations"],
-                      ["📅", "Calendar & Badges", "Your streak and achievements", "calendar", "mood-calendar"],
+                      ["📅", "Calendar & Garden", "Streak, garden and badges", "calendar", "mood-calendar"],
                       ["📊", "Statistics", "Distribution and mood trend", "statistics", "statistics"],
                       ["✨", "Smart Insights", "What the AI noticed", "insights", "smart-insights"],
                       ["◷", "Mood History", "Every check-in in one place", "history", "history"],
@@ -4584,6 +5056,10 @@ function App() {
 
               {show("calendar") && (
               <MoodCalendar history={history} />
+              )}
+
+              {show("garden") && (
+              <MoodGarden history={history} />
               )}
 
               {show("achievements") && (
@@ -5511,7 +5987,11 @@ function App() {
                 mood={latestMood}
               />
 
-              <BreathingCard />
+              <BreathingCard
+                onOpenSession={() =>
+                  setBreathingOpen("calm")
+                }
+              />
 
               <div className="side-motivation">
                 <span>
@@ -5563,6 +6043,15 @@ function App() {
           </footer>
         </div>
       </main>
+
+      {breathingOpen && (
+        <BreathingSession
+          initialPattern={breathingOpen}
+          onClose={() =>
+            setBreathingOpen(false)
+          }
+        />
+      )}
     </div>
   );
 }
