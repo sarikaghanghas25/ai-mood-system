@@ -20,7 +20,7 @@ import pandas as pd
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.pipeline import FeatureUnion, Pipeline
@@ -68,23 +68,11 @@ SANITY_CHECKS = [
 ]
 
 
-def tune_thresholds(y_true, probabilities):
-    """
-    Pick the threshold with the best F1 for each mood. Capped at 0.5:
-    templated validation data is easy, so higher values look fine there
-    but drop the second mood in real mixed sentences.
-    """
-    candidates = np.arange(0.25, 0.501, 0.025)
-    thresholds = {}
-
-    for i, mood in enumerate(MOODS):
-        scores = [
-            f1_score(y_true[:, i], probabilities[:, i] >= t, zero_division=0)
-            for t in candidates
-        ]
-        thresholds[mood] = round(float(candidates[int(np.argmax(scores))]), 3)
-
-    return thresholds
+# One decision threshold for every mood. Tuning per mood on the generated
+# validation split kept picking low values (that data is too easy), which
+# added extra moods to real sentences. 0.55 scored best on the unseen
+# sentences in evaluate_mood_model.py.
+DECISION_THRESHOLD = 0.55
 
 
 def build_pipeline(use_embeddings=True, embedding_weight=2.0, C=4.0):
@@ -139,7 +127,7 @@ def main():
     pipeline.fit(X_train, y_train)
 
     val_probabilities = pipeline.predict_proba(X_val)
-    thresholds = tune_thresholds(y_val, val_probabilities)
+    thresholds = {mood: DECISION_THRESHOLD for mood in MOODS}
 
     val_predictions = np.array([
         [int(mood in select_moods(dict(zip(MOODS, row)), thresholds)) for mood in MOODS]

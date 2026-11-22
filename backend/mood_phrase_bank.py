@@ -56,6 +56,34 @@ RUINED_OCCASION = [
     "koi aaya hi nahi", "kisi ne sab barbaad kar diya",
 ]
 
+# Effort or a good start; reused as "I worked hard, but it was unfair"
+EFFORT = [
+    "I studied really hard for the test", "I wrote a really good answer sheet",
+    "I worked day and night on the project", "I gave my best in the interview",
+    "I prepared for months", "my presentation was the best in class",
+    "maine bahut accha likha tha", "maine pura syllabus padha tha",
+    "maine project pe din raat mehnat ki", "maine apna best diya tha",
+    "maine sabse accha presentation diya", "maine poori taiyaari ki thi",
+]
+
+# Unfair result after effort. Combined with EFFORT, labelled angry + sad only
+UNFAIR_RESULT = [
+    "the teacher gave me low marks", "everyone else got better marks except me",
+    "my boss gave the credit to someone else", "they selected someone with a reference",
+    "the promotion went to someone else", "nobody even appreciated it",
+    "mam ne mujhe kam marks diye", "sir ne mere marks kaat liye",
+    "sabko acche marks mile siwaay mere", "kisi ne tareef tak nahi ki",
+    "promotion kisi aur ko mil gaya", "sifarish wale ka selection ho gaya",
+    "teacher ne meri baat hi nahi maani",
+]
+
+# (good setup, what went wrong, moods of the whole sentence)
+CONTRAST_PATTERNS = [
+    (KINDNESS, BETRAYED_AFTER_HELP, ["angry", "sad"]),
+    (OCCASIONS, RUINED_OCCASION, ["sad", "angry"]),
+    (EFFORT, UNFAIR_RESULT, ["angry", "sad"]),
+]
+
 # (moods, sentences): things that happen, mostly without emotion words
 DOMAIN_EVENTS = [
     # ---------------- WORK ----------------
