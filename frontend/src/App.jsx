@@ -40,6 +40,11 @@ const MOOD_META = {
     label: "Stressed",
     color: "#f3ae55",
   },
+  anxious: {
+    emoji: "😟",
+    label: "Anxious",
+    color: "#e69b5d",
+  },
   tired: {
     emoji: "😴",
     label: "Tired",
@@ -242,18 +247,33 @@ function App() {
 
   const [mobileMenu, setMobileMenu] = useState(false);
 
-  /*
-   * NEW:
-   * Keeps track of which sidebar item is currently selected.
-   */
   const [activeSection, setActiveSection] =
     useState("dashboard");
 
-  /*
-   * NEW:
-   * Search bar value.
-   */
   const [searchQuery, setSearchQuery] = useState("");
+
+  /*
+   * =====================================================
+   * CHATBOT STATE
+   * =====================================================
+   */
+
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: "welcome",
+      sender: "bot",
+      text:
+        "Hi! I'm your AI Companion 🤖💜. You can talk to me about anything you're feeling. I'm here to listen.",
+      mood: "neutral",
+      confidence: null,
+    },
+  ]);
+
+  const [chatInput, setChatInput] = useState("");
+
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const [chatError, setChatError] = useState("");
 
   const authenticatedFetch = async (
     url,
@@ -290,6 +310,12 @@ function App() {
 
     return response;
   };
+
+  /*
+   * =====================================================
+   * DASHBOARD DATA
+   * =====================================================
+   */
 
   const loadDashboardData = async () => {
     try {
@@ -385,6 +411,12 @@ function App() {
     }
   };
 
+  /*
+   * =====================================================
+   * LOAD USER
+   * =====================================================
+   */
+
   useEffect(() => {
     if (!token) return;
 
@@ -414,6 +446,12 @@ function App() {
 
     loadUser();
   }, [token]);
+
+  /*
+   * =====================================================
+   * LOGIN / REGISTER
+   * =====================================================
+   */
 
   const handleAuth = async (event) => {
     event.preventDefault();
@@ -503,6 +541,12 @@ function App() {
     }
   };
 
+  /*
+   * =====================================================
+   * LOGOUT
+   * =====================================================
+   */
+
   const handleLogout = () => {
     localStorage.removeItem(
       "access_token"
@@ -522,8 +566,25 @@ function App() {
 
     setInsights(null);
 
+    setChatMessages([
+      {
+        id: "welcome",
+        sender: "bot",
+        text:
+          "Hi! I'm your AI Companion 🤖💜. You can talk to me about anything you're feeling. I'm here to listen.",
+        mood: "neutral",
+        confidence: null,
+      },
+    ]);
+
     setActiveSection("dashboard");
   };
+
+  /*
+   * =====================================================
+   * MOOD ANALYZER
+   * =====================================================
+   */
 
   const analyzeMood = async () => {
     if (!text.trim()) {
@@ -601,11 +662,124 @@ function App() {
 
   /*
    * =====================================================
-   * SIDEBAR NAVIGATION
+   * AI CHATBOT
    * =====================================================
-   *
-   * Every button now has its own exact section.
    */
+
+  const sendChatMessage = async () => {
+    const message = chatInput.trim();
+
+    if (!message || chatLoading) {
+      return;
+    }
+
+    setChatError("");
+
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      sender: "user",
+      text: message,
+    };
+
+    setChatMessages((previous) => [
+      ...previous,
+      userMessage,
+    ]);
+
+    setChatInput("");
+
+    setChatLoading(true);
+
+    try {
+      const response =
+        await authenticatedFetch(
+          "/api/chatbot/chat",
+          {
+            method: "POST",
+
+            body: JSON.stringify({
+              message,
+            }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          getErrorMessage(data)
+        );
+      }
+
+      const botMessage = {
+        id: `bot-${Date.now()}`,
+        sender: "bot",
+        text:
+          data.reply ||
+          "I'm here with you. Tell me more.",
+        mood:
+          data.mood ||
+          "neutral",
+        confidence:
+          data.confidence ??
+          null,
+        intensity:
+          data.intensity ||
+          "low",
+      };
+
+      setChatMessages((previous) => [
+        ...previous,
+        botMessage,
+      ]);
+    } catch (err) {
+      console.error(
+        "Chatbot error:",
+        err
+      );
+
+      setChatError(
+        err.message ||
+          "Unable to connect with AI Companion."
+      );
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleChatKeyDown = (event) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+
+      sendChatMessage();
+    }
+  };
+
+  const clearChat = () => {
+    setChatMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        sender: "bot",
+        text:
+          "Conversation cleared 💜. I'm ready to listen again. What's on your mind?",
+        mood: "neutral",
+        confidence: null,
+      },
+    ]);
+
+    setChatError("");
+  };
+
+  /*
+   * =====================================================
+   * NAVIGATION
+   * =====================================================
+   */
+
   const navigateTo = (
     section,
     elementId
@@ -621,19 +795,8 @@ function App() {
    * =====================================================
    * SEARCH
    * =====================================================
-   *
-   * Search can find:
-   * Dashboard
-   * Mood Analysis
-   * Recommendations
-   * Mood History
-   * Statistics
-   * Smart Mood Insights
-   * Profile
-   * Settings
-   *
-   * It can also search through mood history.
    */
+
   const handleSearch = () => {
     const query =
       searchQuery.trim().toLowerCase();
@@ -680,6 +843,19 @@ function App() {
         ],
         section: "recommendations",
         id: "recommendations",
+      },
+
+      {
+        keywords: [
+          "chat",
+          "chatbot",
+          "companion",
+          "ai companion",
+          "talk",
+          "feelings",
+        ],
+        section: "chatbot",
+        id: "chatbot",
       },
 
       {
@@ -761,9 +937,6 @@ function App() {
       return;
     }
 
-    /*
-     * Search inside mood history.
-     */
     const matchingHistory =
       history.find((item) => {
         const mood = String(
@@ -789,11 +962,6 @@ function App() {
       return;
     }
 
-    /*
-     * If nothing is found, show analyzer.
-     * Search query is also placed into analyzer
-     * so user can continue from there.
-     */
     setText(searchQuery);
 
     navigateTo(
@@ -811,6 +979,12 @@ function App() {
       handleSearch();
     }
   };
+
+  /*
+   * =====================================================
+   * DASHBOARD VALUES
+   * =====================================================
+   */
 
   const latestHistory = history?.[0];
 
@@ -864,6 +1038,12 @@ function App() {
     dashboard?.positive_percentage ??
     null;
 
+  /*
+   * =====================================================
+   * PROBABILITY DATA
+   * =====================================================
+   */
+
   const probabilityData =
     useMemo(() => {
       const probabilities =
@@ -885,6 +1065,7 @@ function App() {
    * MOOD DISTRIBUTION
    * =====================================================
    */
+
   const distributionData =
     useMemo(() => {
       const counts = {};
@@ -914,6 +1095,7 @@ function App() {
    * MOOD TREND
    * =====================================================
    */
+
   const trendData = useMemo(() => {
     if (!Array.isArray(trend)) {
       return [];
@@ -945,6 +1127,7 @@ function App() {
    * SMART INSIGHTS
    * =====================================================
    */
+
   const insightMessages =
     useMemo(() => {
       if (
@@ -1006,6 +1189,7 @@ function App() {
    * LOGIN / REGISTER PAGE
    * =====================================================
    */
+
   if (!token) {
     return (
       <div className="auth-page">
@@ -1200,6 +1384,7 @@ function App() {
    * MAIN APPLICATION
    * =====================================================
    */
+
   return (
     <div className="app-shell">
       {mobileMenu && (
@@ -1239,8 +1424,6 @@ function App() {
         </div>
 
         <nav className="sidebar-nav">
-          {/* DASHBOARD */}
-
           <button
             type="button"
             className={`nav-item ${
@@ -1260,8 +1443,6 @@ function App() {
 
             Dashboard
           </button>
-
-          {/* MOOD ANALYSIS */}
 
           <button
             type="button"
@@ -1283,7 +1464,29 @@ function App() {
             Mood Analysis
           </button>
 
-          {/* RECOMMENDATIONS */}
+          {/* =================================================
+              AI COMPANION
+          ================================================== */}
+
+          <button
+            type="button"
+            className={`nav-item ${
+              activeSection ===
+              "chatbot"
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              navigateTo(
+                "chatbot",
+                "chatbot"
+              )
+            }
+          >
+            <span>💬</span>
+
+            AI Companion
+          </button>
 
           <button
             type="button"
@@ -1305,8 +1508,6 @@ function App() {
             Recommendations
           </button>
 
-          {/* MOOD HISTORY */}
-
           <button
             type="button"
             className={`nav-item ${
@@ -1326,8 +1527,6 @@ function App() {
 
             Mood History
           </button>
-
-          {/* STATISTICS */}
 
           <button
             type="button"
@@ -1349,8 +1548,6 @@ function App() {
             Statistics
           </button>
 
-          {/* SMART INSIGHTS */}
-
           <button
             type="button"
             className={`nav-item ${
@@ -1371,8 +1568,6 @@ function App() {
             Smart Insights
           </button>
 
-          {/* PROFILE */}
-
           <button
             type="button"
             className={`nav-item ${
@@ -1392,8 +1587,6 @@ function App() {
 
             Profile
           </button>
-
-          {/* SETTINGS */}
 
           <button
             type="button"
@@ -1440,8 +1633,6 @@ function App() {
       ================================================== */}
 
       <main className="main-content">
-        {/* TOP BAR */}
-
         <header className="topbar">
           <button
             type="button"
@@ -1454,8 +1645,6 @@ function App() {
           >
             ☰
           </button>
-
-          {/* SEARCH */}
 
           <div className="search-box">
             <span>⌕</span>
@@ -1736,6 +1925,192 @@ function App() {
               </section>
 
               {/* =================================================
+                  AI COMPANION CHATBOT
+              ================================================== */}
+
+              <section
+                className="chatbot-section"
+                id="chatbot"
+              >
+                <div className="chatbot-header">
+                  <div>
+                    <span className="section-kicker">
+                      AI COMPANION
+                    </span>
+
+                    <h2>
+                      Talk to Your AI Companion 💬
+                    </h2>
+
+                    <p>
+                      Tell me what you're feeling.
+                      I'll listen and try to understand
+                      the emotions behind your words.
+                    </p>
+                  </div>
+
+                  <div className="chatbot-avatar">
+                    🤖
+                  </div>
+                </div>
+
+                <div className="chatbot-status">
+                  <span className="online-dot" />
+
+                  AI Companion is online
+                </div>
+
+                <div className="chat-messages">
+                  {chatMessages.map(
+                    (message) => {
+                      const botMood =
+                        moodInfo(
+                          message.mood
+                        );
+
+                      return (
+                        <div
+                          className={`chat-message-row ${
+                            message.sender ===
+                            "user"
+                              ? "user-message-row"
+                              : "bot-message-row"
+                          }`}
+                          key={
+                            message.id
+                          }
+                        >
+                          {message.sender ===
+                            "bot" && (
+                            <div className="chat-avatar">
+                              🤖
+                            </div>
+                          )}
+
+                          <div
+                            className={`chat-bubble ${
+                              message.sender ===
+                              "user"
+                                ? "user-bubble"
+                                : "bot-bubble"
+                            }`}
+                          >
+                            <p>
+                              {message.text}
+                            </p>
+
+                            {message.sender ===
+                              "bot" &&
+                              message.mood &&
+                              message.mood !==
+                                "neutral" && (
+                                <div className="chat-mood-tag">
+                                  {botMood.emoji}{" "}
+                                  {botMood.label}
+
+                                  {message.confidence !==
+                                    null && (
+                                    <span>
+                                      {" "}
+                                      ·{" "}
+                                      {formatConfidence(
+                                        message.confidence
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                          </div>
+
+                          {message.sender ===
+                            "user" && (
+                            <div className="chat-avatar user-chat-avatar">
+                              {(
+                                user?.name ||
+                                "U"
+                              )
+                                .charAt(0)
+                                .toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                  )}
+
+                  {chatLoading && (
+                    <div className="chat-message-row bot-message-row">
+                      <div className="chat-avatar">
+                        🤖
+                      </div>
+
+                      <div className="chat-bubble bot-bubble typing-bubble">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {chatError && (
+                  <div className="chat-error">
+                    ⚠️ {chatError}
+                  </div>
+                )}
+
+                <div className="chat-input-area">
+                  <textarea
+                    value={chatInput}
+                    onChange={(event) =>
+                      setChatInput(
+                        event.target.value
+                      )
+                    }
+                    onKeyDown={
+                      handleChatKeyDown
+                    }
+                    placeholder="Tell your AI Companion how you're feeling..."
+                    rows={2}
+                  />
+
+                  <div className="chat-input-footer">
+                    <span>
+                      💜 I'm here to listen
+                    </span>
+
+                    <div className="chat-actions">
+                      <button
+                        type="button"
+                        className="chat-clear-button"
+                        onClick={
+                          clearChat
+                        }
+                      >
+                        Clear
+                      </button>
+
+                      <button
+                        type="button"
+                        className="chat-send-button"
+                        onClick={
+                          sendChatMessage
+                        }
+                        disabled={
+                          chatLoading ||
+                          !chatInput.trim()
+                        }
+                      >
+                        {chatLoading
+                          ? "Thinking..."
+                          : "Send 💜"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* =================================================
                   MOOD RESULT
               ================================================== */}
 
@@ -1885,10 +2260,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* IMPORTANT:
-                      Recommendations has its own ID.
-                  */}
-
                   <div
                     className="result-recommendations"
                     id="recommendations"
@@ -1947,7 +2318,6 @@ function App() {
 
               {/* =================================================
                   SMART MOOD INSIGHTS
-                  IMPORTANT: Separate ID
               ================================================== */}
 
               <section
@@ -2092,8 +2462,6 @@ function App() {
 
               {/* =================================================
                   STATISTICS
-                  IMPORTANT:
-                  Statistics ID is now here.
               ================================================== */}
 
               <section
@@ -2398,8 +2766,6 @@ function App() {
 
               {/* =================================================
                   MOOD HISTORY
-                  IMPORTANT:
-                  History ID is now here.
               ================================================== */}
 
               <section
@@ -2515,7 +2881,6 @@ function App() {
 
               {/* =================================================
                   PROFILE
-                  NEW SECTION
               ================================================== */}
 
               <section
@@ -2656,8 +3021,6 @@ function App() {
             ================================================== */}
 
             <aside className="right-sidebar">
-              {/* QUICK ACTIONS */}
-
               <div className="quick-actions-card">
                 <div className="right-card-heading">
                   <span>⚡</span>
@@ -2674,6 +3037,17 @@ function App() {
                     navigateTo(
                       "mood-analysis",
                       "analyzer"
+                    )
+                  }
+                />
+
+                <QuickAction
+                  icon="💬"
+                  text="Talk to AI Companion"
+                  onClick={() =>
+                    navigateTo(
+                      "chatbot",
+                      "chatbot"
                     )
                   }
                 />
@@ -2711,8 +3085,6 @@ function App() {
                   }
                 />
               </div>
-
-              {/* LATEST ACTIVITY */}
 
               <div className="activity-card">
                 <div className="right-card-heading">
@@ -2798,8 +3170,6 @@ function App() {
                 )}
               </div>
 
-              {/* MOTIVATION */}
-
               <div className="side-motivation">
                 <span>
                   Small steps
@@ -2819,20 +3189,16 @@ function App() {
                   type="button"
                   onClick={() =>
                     navigateTo(
-                      "mood-analysis",
-                      "analyzer"
+                      "chatbot",
+                      "chatbot"
                     )
                   }
                 >
-                  →
+                  💬
                 </button>
               </div>
             </aside>
           </div>
-
-          {/* =================================================
-              FOOTER
-          ================================================== */}
 
           <footer className="footer">
             <div>

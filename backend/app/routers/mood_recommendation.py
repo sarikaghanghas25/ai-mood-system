@@ -3,10 +3,18 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models import User, MoodHistory
-from app.schemas.mood_recommendation import MoodRecommendationRequest
-from app.services.mood_ai import detect_mood_with_ai
-from app.services.recommendation_engine import get_recommendations
-from app.utils.security import get_current_user
+from app.schemas.mood_recommendation import (
+    MoodRecommendationRequest
+)
+from app.services.mood_ai import (
+    detect_mood_with_ai
+)
+from app.services.recommendation_engine import (
+    get_recommendations
+)
+from app.utils.security import (
+    get_current_user
+)
 
 
 router = APIRouter(
@@ -21,26 +29,17 @@ def mood_and_recommend(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ---------------------------------------------------------
-    # AI Mood Detection
-    # ---------------------------------------------------------
 
-    ai_result = detect_mood_with_ai(request.text)
+    ai_result = detect_mood_with_ai(
+        request.text
+    )
 
     mood = ai_result["mood"]
     confidence = ai_result["confidence"]
-    explanation = ai_result["explanation"]
-    probabilities = ai_result.get("probabilities", {})
 
-    # ---------------------------------------------------------
-    # Personalized Recommendations
-    # ---------------------------------------------------------
-
-    recommendations = get_recommendations(mood)
-
-    # ---------------------------------------------------------
-    # Save Mood History
-    # ---------------------------------------------------------
+    recommendations = get_recommendations(
+        mood
+    )
 
     mood_history = MoodHistory(
         user_id=current_user.id,
@@ -53,14 +52,13 @@ def mood_and_recommend(
     db.commit()
     db.refresh(mood_history)
 
-    # ---------------------------------------------------------
-    # Return Response
-    # ---------------------------------------------------------
-
     return {
         "mood": mood,
+        "moods": ai_result["moods"],
         "confidence": confidence,
-        "explanation": explanation,
-        "probabilities": probabilities,
+        "intensity": ai_result["intensity"],
+        "explanation": ai_result["explanation"],
+        "probabilities": ai_result["probabilities"],
+        "related_emotions": ai_result["related_emotions"],
         "recommendations": recommendations
     }

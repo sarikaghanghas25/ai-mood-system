@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Emotion-Aware Chatbot Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; }
+    #log { border: 1px solid #ccc; border-radius: 8px; padding: 12px; height: 400px; overflow-y: auto; margin-bottom: 12px; }
+    .msg { margin: 8px 0; }
+    .user { text-align: right; color: #1a4; }
+    .bot { text-align: left; color: #333; }
+    .meta { font-size: 11px; color: #999; }
+    input { width: 80%; padding: 8px; }
+    button { padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h2>Emotion-Aware Chatbot</h2>
+  <div id="log"></div>
+  <input id="input" placeholder="Type a message..." />
+  <button onclick="send()">Send</button>
+
+  <script>
+    const API_URL = "http://localhost:5000/chat";
+    let sessionId = null;
+    const log = document.getElementById("log");
+    const input = document.getElementById("input");
+
+    function addMessage(text, cls, meta) {
+      const div = document.createElement("div");
+      div.className = "msg " + cls;
+      div.innerHTML = text + (meta ? `<div class="meta">${meta}</div>` : "");
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function send() {
+      const message = input.value.trim();
+      if (!message) return;
+      addMessage(message, "user");
+      input.value = "";
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message }),
+      });
+      const data = await res.json();
+      sessionId = data.session_id;
+      addMessage(data.reply, "bot", `emotion: ${data.detected_emotion} (${data.intensity}/5)`);
+    }
+
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+  </script>
+</body>
+</html>
