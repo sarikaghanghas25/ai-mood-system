@@ -1477,6 +1477,12 @@ def detect_mood_with_ai(text: str):
     text = normalize_text(text)
     rule_text = remove_negated_moods(text)
 
+    # "tired of my project" / "sick of it" means fed up, not sleepy;
+    # keep the tiredness rules out of it and let the model decide
+    rule_text = re.sub(
+        r"\b(sick and )?(tired|sick) of\b", "fed up with", rule_text
+    )
+
     # --------------------------------------------------------
     # Intent
     # --------------------------------------------------------
@@ -1708,6 +1714,15 @@ def detect_mood_with_ai(text: str):
     # Return
     # --------------------------------------------------------
 
+    # When a rule chose the mood, show the same certainty in the
+    # probability list; otherwise the card says "Tired 96%" while the
+    # list says "Tired 9%"
+    shown_probabilities = dict(ml_probabilities)
+    shown_probabilities[final_mood] = max(
+        shown_probabilities.get(final_mood, 0.0),
+        float(confidence),
+    )
+
     return {
         "mood": final_mood,
         "moods": moods,
@@ -1721,7 +1736,7 @@ def detect_mood_with_ai(text: str):
                 4
             )
             for mood, probability
-            in ml_probabilities.items()
+            in shown_probabilities.items()
         },
 
         "related_emotions": related_emotions,

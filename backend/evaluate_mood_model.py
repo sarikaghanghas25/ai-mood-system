@@ -107,6 +107,7 @@ USER_REPORTED = [
     ("MERA PHONE TUT GYA BUT I GOT NEW ONE", {"happy"}),
     ("getting shy", {"anxious"}),
     ("aaj m ek ldki ko buhari thi lakin usko chate time merko chot lgyi", {"sad"}),
+    ("aaj bahut thak gayi hoon", {"tired"}),
 ]
 
 

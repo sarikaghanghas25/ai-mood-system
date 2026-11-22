@@ -475,6 +475,10 @@ IDIOMS = {
         "I am completely wiped out", "I could sleep for a whole day", "my body is giving up",
         "body toot rahi hai", "aankhein khuli nahi reh rahi", "battery zero ho gayi hai meri",
         "ufff thak gaya", "neend se bura haal hai",
+        # Feminine forms: "gayi" alone was pulling these towards happy
+        "ufff thak gayi", "aaj to main poori thak gayi yaar", "kaam karte karte thak gayi hoon",
+        "padhai karke thak chuki hoon", "aaj bahut thaki thaki si hoon",
+        "main bilkul thak gayi, ab sona hai", "aaj kal bahut thakan rehti hai mujhe",
     ],
     "anxious": [
         "my stomach is in knots", "I have a bad feeling about this",
