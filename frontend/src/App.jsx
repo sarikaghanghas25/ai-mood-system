@@ -678,6 +678,56 @@ function App() {
 
   /*
    * =====================================================
+   * DELETE MOOD HISTORY
+   * =====================================================
+   */
+
+  const deleteHistory = async (
+    url,
+    confirmText
+  ) => {
+    if (!window.confirm(confirmText)) {
+      return;
+    }
+
+    try {
+      const response =
+        await authenticatedFetch(url, {
+          method: "DELETE",
+        });
+
+      if (!response.ok) {
+        const data =
+          await response.json();
+
+        throw new Error(
+          getErrorMessage(data)
+        );
+      }
+
+      await loadDashboardData();
+    } catch (err) {
+      window.alert(
+        err.message ||
+          "Could not delete. Please try again."
+      );
+    }
+  };
+
+  const deleteHistoryEntry = (id) =>
+    deleteHistory(
+      `/api/mood/history/${id}`,
+      "Delete this mood entry? This can't be undone."
+    );
+
+  const clearAllHistory = () =>
+    deleteHistory(
+      "/api/mood/history",
+      "Delete your entire mood history? This can't be undone."
+    );
+
+  /*
+   * =====================================================
    * AI CHATBOT
    * =====================================================
    */
@@ -2856,18 +2906,33 @@ function App() {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    className="view-all-button"
-                    onClick={() =>
-                      navigateTo(
-                        "statistics",
-                        "statistics"
-                      )
-                    }
-                  >
-                    View Analytics
-                  </button>
+                  <div className="history-actions">
+                    {history.length >
+                      0 && (
+                      <button
+                        type="button"
+                        className="clear-history-button"
+                        onClick={
+                          clearAllHistory
+                        }
+                      >
+                        🗑 Clear all
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="view-all-button"
+                      onClick={() =>
+                        navigateTo(
+                          "statistics",
+                          "statistics"
+                        )
+                      }
+                    >
+                      View Analytics
+                    </button>
+                  </div>
                 </div>
 
                 <div className="history-list">
@@ -2945,6 +3010,22 @@ function App() {
                                   )}
                                 </strong>
                               </div>
+
+                              {item.id && (
+                                <button
+                                  type="button"
+                                  className="delete-history-button"
+                                  title="Delete this entry"
+                                  aria-label="Delete this entry"
+                                  onClick={() =>
+                                    deleteHistoryEntry(
+                                      item.id
+                                    )
+                                  }
+                                >
+                                  🗑
+                                </button>
+                              )}
                             </div>
                           );
                         }

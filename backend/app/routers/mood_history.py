@@ -1,6 +1,6 @@
 from collections import Counter
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -35,6 +35,54 @@ def get_mood_history(
     )
 
     return history
+
+
+# ---------------------------------------------------------
+# Delete Mood History
+# ---------------------------------------------------------
+
+@router.delete("/history/{history_id}")
+def delete_mood_history_entry(
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Only the owner's entry; someone else's id looks like "not found"
+    entry = (
+        db.query(MoodHistory)
+        .filter(
+            MoodHistory.id == history_id,
+            MoodHistory.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Mood history entry not found"
+        )
+
+    db.delete(entry)
+    db.commit()
+
+    return {"deleted": 1}
+
+
+@router.delete("/history")
+def clear_mood_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    deleted = (
+        db.query(MoodHistory)
+        .filter(MoodHistory.user_id == current_user.id)
+        .delete()
+    )
+
+    db.commit()
+
+    return {"deleted": deleted}
 
 
 # ---------------------------------------------------------

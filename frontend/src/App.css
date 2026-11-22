@@ -1480,6 +1480,52 @@ button:disabled {
   font-size: 15px;
 }
 
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clear-history-button {
+  padding: 8px 12px;
+  border: 1px solid #f3c9cf;
+  border-radius: 10px;
+  color: #b4374a;
+  background: #fff5f6;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clear-history-button:hover {
+  background: #ffe8eb;
+}
+
+.delete-history-button {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: 0.2s ease;
+}
+
+.history-item:hover .delete-history-button {
+  opacity: 1;
+}
+
+.delete-history-button:hover {
+  border-color: #f3c9cf;
+  background: #fff5f6;
+}
+
 /* =========================
    RIGHT SIDEBAR
 ========================= */
