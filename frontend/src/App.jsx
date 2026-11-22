@@ -693,6 +693,18 @@ function App() {
 
     setChatLoading(true);
 
+    // Earlier messages (before this one) so the AI remembers the chat
+    const history = chatMessages
+      .slice(-12)
+      .map((item) => ({
+        role:
+          item.sender === "user"
+            ? "user"
+            : "assistant",
+        content: item.text || "",
+      }))
+      .filter((item) => item.content);
+
     try {
       const response =
         await authenticatedFetch(
@@ -702,6 +714,7 @@ function App() {
 
             body: JSON.stringify({
               message,
+              history,
             }),
           }
         );

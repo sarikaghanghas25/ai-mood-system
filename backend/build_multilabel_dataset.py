@@ -55,7 +55,7 @@ NEUTRAL_COUNT = 450
 GOEMOTIONS_PER_MOOD = 350
 EVENTS_PER_GROUP = 45
 BANK_VARIANTS_PER_SENTENCE = 5
-CROSS_EVENT_COMBOS = 2000
+CROSS_ROWS_PER_PAIR = 2
 CONTRAST_ROWS_PER_PATTERN = 120
 EMOJI_ROWS = 900
 TYPO_FRACTION = 0.15
@@ -363,6 +363,15 @@ PREFIXES = [
 # TEMPLATES
 # ============================================================
 
+def section_rng(*key):
+    """
+    Separate random stream per dataset section. Adding sentences to one
+    group then changes only that group's rows, not the whole dataset
+    (with one shared stream, every later row shifted and old fixes broke).
+    """
+    return random.Random(":".join(str(part) for part in (SEED,) + key))
+
+
 def pick(rng, items):
     return rng.choice(items)
 
@@ -475,20 +484,23 @@ def make_row(text, labels):
     return row
 
 
-def generate_rows(rng):
+def generate_rows():
     rows = []
 
     for mood in EMOTIONAL_MOODS:
+        rng = section_rng("single", mood)
         for _ in range(SINGLES_PER_MOOD):
             rows.append(make_row(single_sentence(rng, mood), [mood]))
 
     for a, b in itertools.combinations(EMOTIONAL_MOODS, 2):
+        rng = section_rng("pair", a, b)
         for i in range(PAIRS_PER_COMBO):
             # Alternate order so the model doesn't learn "first mood wins"
             first, second = (a, b) if i % 2 == 0 else (b, a)
             rows.append(make_row(pair_sentence(rng, first, second), [a, b]))
 
     for combo in itertools.combinations(EMOTIONAL_MOODS, 3):
+        rng = section_rng("triple", *combo)
         for _ in range(TRIPLES_PER_COMBO):
             order = list(combo)
             rng.shuffle(order)
@@ -499,13 +511,16 @@ def generate_rows(rng):
         for actual in EMOTIONAL_MOODS:
             if actual == negated:
                 continue
+            rng = section_rng("negation", negated, actual)
             for _ in range(NEGATIONS_PER_COMBO):
                 rows.append(make_row(negation_sentence(rng, negated, actual), [actual]))
 
     for events, moods in EVENTS:
+        rng = section_rng("event", events[0])
         for _ in range(EVENTS_PER_GROUP):
             rows.append(make_row(event_sentence(rng, events, moods), moods))
 
+    rng = section_rng("neutral")
     for _ in range(NEUTRAL_COUNT):
         rows.append(make_row(pick(rng, PREFIXES) + pick(rng, NEUTRAL_SENTENCES), ["neutral"]))
 
@@ -592,25 +607,30 @@ COMBO_CONNECTORS = [
 DEVANAGARI_PREFIXES = ["", "", "आज ", "सच में ", "यार "]
 
 
-def bank_rows(rng):
+def bank_rows():
     rows = []
 
     for moods, sentences in DOMAIN_EVENTS:
+        rng = section_rng("domain", sentences[0])
         for _ in range(len(sentences) * BANK_VARIANTS_PER_SENTENCE):
             rows.append(make_row(event_sentence(rng, sentences, moods), moods))
 
     # Two unrelated events in one message: "got a raise but mom is in hospital"
-    for _ in range(CROSS_EVENT_COMBOS):
-        (moods_a, events_a), (moods_b, events_b) = rng.sample(DOMAIN_EVENTS, 2)
+    # Fixed rows per pair of groups, so a new group only adds its own pairs
+    for (moods_a, events_a), (moods_b, events_b) in itertools.combinations(DOMAIN_EVENTS, 2):
         labels = sorted(set(moods_a) | set(moods_b))
         if len(labels) > 3:
             continue
-        text = pick(rng, events_a) + pick(rng, COMBO_CONNECTORS) + pick(rng, events_b)
-        rows.append(make_row(pick(rng, PREFIXES) + text, labels))
+        rng = section_rng("cross", events_a[0], events_b[0])
+        for _ in range(CROSS_ROWS_PER_PAIR):
+            first, second = (events_a, events_b) if rng.random() < 0.5 else (events_b, events_a)
+            text = pick(rng, first) + pick(rng, COMBO_CONNECTORS) + pick(rng, second)
+            rows.append(make_row(pick(rng, PREFIXES) + text, labels))
 
     # "Something good, BUT it went wrong": the label is only the outcome's
     # moods. An equal number of plain good setups keeps them happy on their own.
     for setups, outcomes, moods in CONTRAST_PATTERNS:
+        rng = section_rng("contrast", setups[0])
         for _ in range(CONTRAST_ROWS_PER_PATTERN):
             text = (
                 pick(rng, PREFIXES) + pick(rng, setups)
@@ -621,6 +641,7 @@ def bank_rows(rng):
             rows.append(make_row(pick(rng, PREFIXES) + pick(rng, setups), ["happy"]))
 
     for mood, idioms in IDIOMS.items():
+        rng = section_rng("idiom", mood)
         for idiom in idioms:
             for _ in range(BANK_VARIANTS_PER_SENTENCE):
                 text = pick(rng, [
@@ -638,11 +659,13 @@ def bank_rows(rng):
                 rows.append(make_row(prefix + sentence, [mood]))
 
     for mood, questions in QUESTIONS.items():
+        rng = section_rng("question", mood)
         for question in questions:
             for _ in range(BANK_VARIANTS_PER_SENTENCE):
                 text = pick(rng, PREFIXES) + question + pick(rng, ["?", "??", "", " yaar?"])
                 rows.append(make_row(text, [mood]))
 
+    rng = section_rng("emoji")
     for _ in range(EMOJI_ROWS):
         mood = pick(rng, list(EMOJIS))
         base = pick(rng, [
@@ -652,6 +675,7 @@ def bank_rows(rng):
         emoji = pick(rng, EMOJIS[mood]) * rng.randint(1, 3)
         rows.append(make_row(f"{base} {emoji}", [mood]))
 
+    rng = section_rng("extra-neutral")
     for sentence in EXTRA_NEUTRAL:
         for _ in range(4):
             rows.append(make_row(pick(rng, PREFIXES) + sentence, ["neutral"]))
@@ -687,18 +711,19 @@ def main():
     parser.add_argument("--no-goemotions", action="store_true")
     args = parser.parse_args()
 
-    rng = random.Random(SEED)
+    rows = load_single_label_rows() + generate_rows() + bank_rows()
 
-    rows = load_single_label_rows() + generate_rows(rng) + bank_rows(rng)
-
-    # People make typos; teach the model the same sentence still means the same
+    # People make typos; teach the model the same sentence still means the same.
+    # Decided per sentence, so adding rows elsewhere doesn't change which get one.
     typo_rows = []
-    for row in rng.sample(rows, int(len(rows) * TYPO_FRACTION)):
-        typo_rows.append({**row, "text": add_typo(rng, row["text"])})
+    for row in rows:
+        rng = section_rng("typo", row["text"])
+        if rng.random() < TYPO_FRACTION:
+            typo_rows.append({**row, "text": add_typo(rng, row["text"])})
     rows += typo_rows
 
     if not args.no_goemotions:
-        rows += load_goemotions_rows(rng)
+        rows += load_goemotions_rows(section_rng("goemotions"))
 
     df = pd.DataFrame(rows)
     df["text"] = df["text"].str.replace(r"\s+", " ", regex=True).str.strip()

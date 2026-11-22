@@ -1,3 +1,7 @@
+import re
+
+from app.services.claude_chat import generate_claude_reply
+from app.services.local_chat import generate_local_reply
 from app.services.mood_ai import detect_mood_with_ai
 
 
@@ -35,8 +39,9 @@ def normalize_chat_text(text: str) -> str:
         "talkk": "talk",
     }
 
+    # Whole words only ("im" must not change "time" or "him")
     for old, new in replacements.items():
-        text = text.replace(old, new)
+        text = re.sub(rf"\b{re.escape(old)}\b", new, text)
 
     return " ".join(text.split())
 
@@ -1172,7 +1177,8 @@ def generate_chatbot_reply(
     # AI mood analysis
     # --------------------------------------------------------
 
-    mood_result = detect_mood_with_ai(normalized_text)
+    # detect_mood_with_ai normalizes the text itself
+    mood_result = detect_mood_with_ai(text)
 
     mood = mood_result.get(
         "mood",
@@ -1267,11 +1273,36 @@ def generate_chatbot_reply(
     # Response
     # --------------------------------------------------------
 
-    reply = generate_emotional_response(
+    # Claude (if a key is set), then the free local model,
+    # then the rule-based reply
+
+    reply = generate_claude_reply(
+        message=text,
+        history=conversation_history,
+        mood_result=mood_result,
         intent=intent,
-        mood=mood,
-        intensity=intensity,
     )
+
+    reply_source = "claude"
+
+    if reply is None:
+        reply = generate_local_reply(
+            message=text,
+            history=conversation_history,
+            mood_result=mood_result,
+            intent=intent,
+        )
+
+        reply_source = "local"
+
+    if reply is None:
+        reply = generate_emotional_response(
+            intent=intent,
+            mood=mood,
+            intensity=intensity,
+        )
+
+        reply_source = "rules"
 
     # --------------------------------------------------------
     # Return
@@ -1279,6 +1310,7 @@ def generate_chatbot_reply(
 
     return {
         "reply": reply,
+        "reply_source": reply_source,
         "mood": mood,
         "confidence": round(
             float(confidence),

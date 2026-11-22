@@ -133,6 +133,15 @@ DOMAIN_EVENTS = [
         "board exam mein 95 percent aaye", "mera college mein admission ho gaya",
         "scholarship mil gayi", "sab subjects mein pass ho gaya",
     ]),
+    # "lag gayi" with a job/placement is good news (unlike "chot lag gayi")
+    (["happy"], [
+        "I finally got a job", "I got placed in a good company",
+        "my brother got a government job", "I landed my first job today",
+        "meri job lag gayi", "meri naukri lag gayi", "mera placement lag gaya",
+        "meri internship lag gayi", "bhai ki sarkari naukri lag gayi",
+        "aakhirkar job lag gayi", "achhi company mein job lag gayi",
+        "papa ki promotion ho gayi", "didi ki job lag gayi",
+    ]),
     (["stressed"], [
         "the syllabus is huge and exams start in a week",
         "I have two assignments and a lab record due tomorrow",
@@ -179,6 +188,16 @@ DOMAIN_EVENTS = [
         "my brother keeps reading my messages", "my relatives keep interfering in my life",
         "ghar wale meri baat kabhi nahi sunte", "mummy papa har baat pe rok tok karte hain",
         "rishtedaar har baar shaadi ki baat chhed dete hain",
+    ]),
+    # Marriage against someone's wishes: sadness and worry, not celebration
+    (["sad", "anxious"], [
+        "my friend is being forced to get married", "my sister doesn't want this marriage",
+        "my parents are fixing my marriage without asking me",
+        "she doesn't want to marry him but her family won't listen",
+        "meri dost ki shaadi zabardasti ho rahi hai",
+        "wo shaadi nahi karna chahti par ghar wale nahi maan rahe",
+        "meri marzi ke bina meri shaadi fix kar di",
+        "didi ye shaadi nahi karna chahti", "ghar wale zabardasti rishta pakka kar rahe hain",
     ]),
     (["anxious"], [
         "my parents are fighting a lot these days",
