@@ -87,7 +87,7 @@ def tune_thresholds(y_true, probabilities):
     return thresholds
 
 
-def build_pipeline(use_embeddings=True, embedding_weight=2.0):
+def build_pipeline(use_embeddings=True, embedding_weight=2.0, C=4.0):
     feature_parts = [
         ("words", TfidfVectorizer(
             ngram_range=(1, 2), sublinear_tf=True, min_df=1, max_features=40000,
@@ -106,7 +106,7 @@ def build_pipeline(use_embeddings=True, embedding_weight=2.0):
     features = FeatureUnion(feature_parts)
 
     classifier = OneVsRestClassifier(
-        LogisticRegression(max_iter=3000, C=6.0, class_weight="balanced")
+        LogisticRegression(max_iter=3000, C=C, class_weight="balanced")
     )
 
     return Pipeline([("features", features), ("classifier", classifier)])
@@ -119,6 +119,10 @@ def main():
         help="word features only (no sentence-transformers needed)",
     )
     parser.add_argument("--embedding-weight", type=float, default=2.0)
+    parser.add_argument(
+        "--C", type=float, default=4.0,
+        help="lower = more regularization (less memorizing of templates)",
+    )
     args = parser.parse_args()
 
     df = pd.read_csv(DATASET_PATH).dropna(subset=["text"])
@@ -131,7 +135,7 @@ def main():
         texts, labels, test_size=0.2, random_state=42,
     )
 
-    pipeline = build_pipeline(not args.no_embeddings, args.embedding_weight)
+    pipeline = build_pipeline(not args.no_embeddings, args.embedding_weight, args.C)
     pipeline.fit(X_train, y_train)
 
     val_probabilities = pipeline.predict_proba(X_val)

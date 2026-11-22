@@ -225,6 +225,14 @@ DOMAIN_EVENTS = [
         "I have so many expenses this month", "the EMI is due and salary is late",
         "loan ki EMI bharni hai aur salary nahi aayi", "is mahine kharche bahut zyada hain",
     ]),
+    # Big unplanned expense (treatment, repairs): money pressure
+    (["stressed"], [
+        "the hospital bill was huge", "the car repair cost a fortune",
+        "we spent all our savings on the treatment", "the operation cost more than we had",
+        "ilaaj mein bahut saare paise lag gaye", "hospital ka bill bahut zyada aaya",
+        "gaadi theek karwane mein bahut kharcha ho gaya", "saari savings ilaaj mein chali gayi",
+        "operation ke liye udhaar lena pada",
+    ]),
     (["anxious"], [
         "I invested all my savings and the market crashed",
         "I don't know how I will pay the fees next month",
