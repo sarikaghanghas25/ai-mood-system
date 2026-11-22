@@ -1,6 +1,8 @@
+import re
 from pathlib import Path
 
 import joblib
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
 MODEL_PATH = Path(__file__).resolve().parent / "mood_model.joblib"
@@ -54,6 +56,49 @@ MULTILABEL_MODEL_PATH = (
 )
 
 MAX_MOODS = 3
+
+EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+_encoders = {}
+
+
+def get_encoder(model_name: str):
+    """Loaded once per process; the first ever call downloads ~470MB."""
+    if model_name not in _encoders:
+        from sentence_transformers import SentenceTransformer
+
+        _encoders[model_name] = SentenceTransformer(model_name)
+
+    return _encoders[model_name]
+
+
+class SentenceEmbedder(BaseEstimator, TransformerMixin):
+    """
+    Turns each sentence into a meaning vector, so "I aced my test" lands
+    near "I passed my exam" even if "aced" never appeared in training.
+
+    The encoder itself is not saved inside the joblib file, only its name.
+    """
+
+    def __init__(self, model_name=EMBEDDING_MODEL_NAME, weight=1.0):
+        self.model_name = model_name
+        self.weight = weight
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        # NEG_ markers are for the word features; the encoder reads plain text
+        texts = [re.sub(r"\bNEG_", "", text) for text in X]
+
+        vectors = get_encoder(self.model_name).encode(
+            texts,
+            batch_size=64,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+
+        return vectors * self.weight
 
 _multilabel_model = None
 

@@ -1,5 +1,9 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.services.mood_ai import detect_mood_with_ai
 
 from app.routers.auth import router as auth_router
 from app.routers.mood import router as mood_router
@@ -11,10 +15,27 @@ from app.routers.chatbot import router as chatbot_router
 
 
 # ============================================================
+# MODEL WARM-UP
+# ============================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Loading the mood model takes ~5s; do it at startup instead of
+    # making the first user wait
+    try:
+        detect_mood_with_ai("warm up")
+    except Exception as error:
+        print(f"Mood model warm-up failed: {error}")
+
+    yield
+
+
+# ============================================================
 # CREATE FASTAPI APP
 # ============================================================
 
 app = FastAPI(
+    lifespan=lifespan,
     title="AI Mood Detection & Personalized Recommendation System",
     description=(
         "AI-powered system for mood detection, "

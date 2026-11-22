@@ -10,6 +10,7 @@ Run after build_multilabel_dataset.py:
     python3 train_multilabel_model.py
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -28,7 +29,7 @@ from sklearn.pipeline import FeatureUnion, Pipeline
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from app.ai.mood_model import MOODS, mark_negation, select_moods  # noqa: E402
+from app.ai.mood_model import MOODS, SentenceEmbedder, mark_negation, select_moods  # noqa: E402
 from app.services.mood_ai import normalize_text  # noqa: E402
 
 
@@ -86,8 +87,8 @@ def tune_thresholds(y_true, probabilities):
     return thresholds
 
 
-def build_pipeline():
-    features = FeatureUnion([
+def build_pipeline(use_embeddings=True, embedding_weight=2.0):
+    feature_parts = [
         ("words", TfidfVectorizer(
             ngram_range=(1, 2), sublinear_tf=True, min_df=1, max_features=40000,
         )),
@@ -96,7 +97,13 @@ def build_pipeline():
             analyzer="char_wb", ngram_range=(2, 5), sublinear_tf=True,
             min_df=2, max_features=60000,
         )),
-    ])
+    ]
+
+    # Meaning of the whole sentence (paraphrases, new words, Hindi script)
+    if use_embeddings:
+        feature_parts.append(("meaning", SentenceEmbedder(weight=embedding_weight)))
+
+    features = FeatureUnion(feature_parts)
 
     classifier = OneVsRestClassifier(
         LogisticRegression(max_iter=3000, C=6.0, class_weight="balanced")
@@ -106,6 +113,14 @@ def build_pipeline():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--no-embeddings", action="store_true",
+        help="word features only (no sentence-transformers needed)",
+    )
+    parser.add_argument("--embedding-weight", type=float, default=2.0)
+    args = parser.parse_args()
+
     df = pd.read_csv(DATASET_PATH).dropna(subset=["text"])
     texts = df["text"].astype(str).map(lambda t: mark_negation(normalize_text(t)))
     labels = df[MOODS].to_numpy()
@@ -116,7 +131,7 @@ def main():
         texts, labels, test_size=0.2, random_state=42,
     )
 
-    pipeline = build_pipeline()
+    pipeline = build_pipeline(not args.no_embeddings, args.embedding_weight)
     pipeline.fit(X_train, y_train)
 
     val_probabilities = pipeline.predict_proba(X_val)
