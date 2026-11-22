@@ -56,7 +56,6 @@ SHORT_FORMS = {
     "rh": "reh",
     "akele": "akele",
     "sone": "sona",
-    "so": "sona",
     "tired": "tired",
 }
 
@@ -100,8 +99,14 @@ def normalize_text(text: str) -> str:
         "baat nai": "baat nahi",
     }
 
-    for old, new in replacements.items():
-        text = text.replace(old, new)
+    # Whole words only ("im" must not change "time" or "him"),
+    # longest phrases first so "dont want ton talk" wins over "ton talk"
+    for old in sorted(replacements, key=len, reverse=True):
+        text = re.sub(
+            rf"\b{re.escape(old)}\b",
+            replacements[old],
+            text
+        )
 
     # Remove repeated characters:
     # "tallkk" -> "talk"
