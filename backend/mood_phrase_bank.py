@@ -469,6 +469,10 @@ IDIOMS = {
         "I could punch the wall", "I am so done with these people", "this is driving me crazy",
         "dimag ka dahi ho gaya", "pagal kar diya hai sabne", "sar pe chadh gaye hain sab",
         "ugh so annoying", "kitna irritating hai yaar",
+        # Fed up with people
+        "in logon se pak gaya hoon", "sabki baatein sun sun ke pak chuki hoon",
+        "tang aa gayi hoon in sab se", "uski harkaton se tang aa gaya",
+        "sach mein pak gayi yaar is insaan se",
     ],
     "tired": [
         "my feet are killing me", "I am running on empty", "I am dead on my feet",
@@ -491,6 +495,11 @@ IDIOMS = {
         "I am at my breaking point", "there is too much on my plate",
         "sar phat raha hai kaam se", "dimag pe bahut bojh hai", "saans lene ki fursat nahi",
         "kaam ka pahaad khada hai",
+        # Fed up with work: "pak gayi" / "pareshan" are not happy
+        "office ke kaam se pak gaya hoon", "roz ke assignments se pak chuki hoon",
+        "padhai se bilkul pak gayi hoon", "bahut pareshan ho gayi hoon aaj kal",
+        "kaam ne pareshan kar rakha hai", "is project ne pareshan kar diya",
+        "deadlines se tang aa gayi hoon",
     ],
 }
 

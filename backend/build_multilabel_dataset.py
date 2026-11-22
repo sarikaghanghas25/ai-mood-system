@@ -707,6 +707,27 @@ def add_typo(rng, text):
     return " ".join(words)
 
 
+# First-person verb endings, masculine -> feminine ("main thak gaya hoon"
+# -> "main thak gayi hoon"). Most Hinglish rows were written in the
+# masculine, so "gayi" ended up meaning "happy" to the model.
+FEMININE_FORMS = {
+    "gaya": "gayi", "raha": "rahi", "tha": "thi", "hua": "hui",
+    "thaka": "thaki", "chuka": "chuki", "paya": "payi", "sakta": "sakti",
+    "karta": "karti", "rehta": "rehti", "akela": "akeli",
+}
+FEMININE_FRACTION = 0.6
+
+
+def feminine_copy(text):
+    """The same sentence said by a woman, or None if it isn't about "I"."""
+    words = text.split()
+    if "hoon" not in words:
+        return None
+
+    swapped = [FEMININE_FORMS.get(word, word) for word in words]
+    return " ".join(swapped) if swapped != words else None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-goemotions", action="store_true")
@@ -722,6 +743,14 @@ def main():
         if rng.random() < TYPO_FRACTION:
             typo_rows.append({**row, "text": add_typo(rng, row["text"])})
     rows += typo_rows
+
+    # Balance masculine and feminine first-person sentences
+    feminine_rows = []
+    for row in rows:
+        copy = feminine_copy(row["text"])
+        if copy and section_rng("feminine", row["text"]).random() < FEMININE_FRACTION:
+            feminine_rows.append({**row, "text": copy})
+    rows += feminine_rows
 
     if not args.no_goemotions:
         rows += load_goemotions_rows(section_rng("goemotions"))
