@@ -86,6 +86,33 @@ HELD_OUT = [
 ]
 
 
+# Sentences users reported as wrong in the app. These HAVE guided dataset
+# fixes, so they are not "unseen": they only check that old fixes still hold.
+USER_REPORTED = [
+    ("I went to a birthday party or wha raste me mera accident ho gya lakin I am safe but meri car crash ho gyi", {"sad", "anxious"}),
+    ("I was attack by a terrorsist but I am  safe just some minor injuries", {"anxious", "sad"}),
+    ("merko placement chahiye meri yari nhi hui h abhi lakin m kr rhi hu try meri dost ki placement to lg gyi lakin meri nhi lg rr", {"sad"}),
+    ("aaj mne hospital me ek patient ki jaan bhai apna blood deke", {"happy"}),
+    ("mne exam m ek dost ki help ki pass hone me lakin usne mrko hi fsa dia fr maam ne mere ppr chin lia", {"angry", "sad"}),
+    ("aaj clg me mera phone tut gya ab ghr p kese btau", {"sad", "anxious"}),
+    ("mne 2 din overwork kiya lakin merko extra salary nhi mili fr mne complain ki lakin wo thode se pese hi dere h", {"angry"}),
+    ("aaj hmare ghr m shade h lakin dulhan bhag gyi", {"angry", "sad"}),
+    ("meri dost ka accident ho gya tha lakin abhi wo thk h lakin bhut sare pese lg gye", {"sad", "anxious", "stressed"}),
+    ("I have 1000 money mne shopping krli ab mere sare pese khtm hoge", {"stressed", "anxious"}),
+]
+
+
+def check_user_reported():
+    passed = 0
+    for text, expected in USER_REPORTED:
+        moods = set(detect_mood_with_ai(text)["moods"])
+        passed += moods == expected
+        if moods != expected:
+            print(f"BROKE {text[:70]}")
+            print(f"      expected {sorted(expected)}, got {sorted(moods)}")
+    print(f"User-reported still right: {passed}/{len(USER_REPORTED)}")
+
+
 def main():
     exact = 0
     primary_hit = 0
@@ -111,6 +138,9 @@ def main():
     print(f"Main mood correct:    {primary_hit}/{total} ({primary_hit / total * 100:.0f}%)")
     print(f"Precision (no extra): {true_positive / predicted_total * 100:.0f}%")
     print(f"Recall (none missed): {true_positive / expected_total * 100:.0f}%")
+
+    print()
+    check_user_reported()
 
 
 if __name__ == "__main__":

@@ -109,6 +109,14 @@ SHORT_FORMS = {
     "tb": "tab",
     "bhot": "bahut",
     "pese": "paise",
+    "khtm": "khatam",
+    "khatm": "khatam",
+    "krli": "kar li",
+    "krlia": "kar liya",
+    "krdi": "kar di",
+    "krdia": "kar diya",
+    "hoge": "ho gaye",
+    "hogye": "ho gaye",
     "thk": "theek",
     "thik": "theek",
     "tik": "theek",
@@ -227,9 +235,9 @@ def normalize_text(text: str) -> str:
             text
         )
 
-    # Remove repeated characters:
-    # "tallkk" -> "talk"
-    text = re.sub(r"(.)\1{2,}", r"\1", text)
+    # Remove repeated letters:
+    # "sooooo" -> "so" (letters only, so "1000" stays "1000")
+    text = re.sub(r"([^\W\d_])\1{2,}", r"\1", text)
 
     # Word-level replacements
     words = text.split()

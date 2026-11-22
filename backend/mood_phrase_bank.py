@@ -225,6 +225,19 @@ DOMAIN_EVENTS = [
         "I have so many expenses this month", "the EMI is due and salary is late",
         "loan ki EMI bharni hai aur salary nahi aayi", "is mahine kharche bahut zyada hain",
     ]),
+    # Spent too much and now money is gone: worry about the rest of the month
+    (["stressed", "anxious"], [
+        "I spent all my money on shopping and now I have nothing left",
+        "I blew my whole salary in the first week",
+        "I ordered too much online and now my account is empty",
+        "I have only a few hundred left for the rest of the month",
+        "shopping mein saare paise uda diye, ab kuch nahi bacha",
+        "mahine ki shuruaat mein hi saari salary khatam ho gayi",
+        "online order karte karte account khaali ho gaya",
+        "ab mahina kaise nikalega, paise khatam ho gaye",
+        "pocket money ek hi hafte mein khatam ho gayi",
+    ]),
+
     # Big unplanned expense (treatment, repairs): money pressure
     (["stressed"], [
         "the hospital bill was huge", "the car repair cost a fortune",
