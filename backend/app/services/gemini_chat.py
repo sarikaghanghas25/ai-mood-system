@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 
 from app.config import settings
+from app.services import gemini_models
 from app.services.claude_chat import (
     CRISIS_LINE,
     SYSTEM_PROMPT,
@@ -36,6 +37,32 @@ TIMEOUT_SECONDS = 25
 # model that can't run without thinking rejects that once; after that the
 # setting is left out.
 _send_thinking_off = True
+
+# Google retires model names. When the configured one answers "404 not
+# found", a working model is looked up once and used from then on.
+_model_override = None
+_dead_models = set()
+_candidates = None
+
+
+def current_model() -> str:
+    return _model_override or settings.GEMINI_MODEL
+
+
+def _find_replacement():
+    """A model Google still has, or None. Asks Google once and remembers the list."""
+    global _candidates
+
+    if _candidates is None:
+        try:
+            _candidates = gemini_models.candidates(
+                gemini_models.list_models(settings.GEMINI_API_KEY, settings.GEMINI_URL)
+            )
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
+            logger.warning("Could not ask Gemini which models exist")
+            return None
+
+    return next((name for name in _candidates if name not in _dead_models), None)
 
 
 def build_contents(messages):
@@ -71,16 +98,20 @@ def _error_text(error: urllib.error.HTTPError) -> str:
 
 def _post(body: dict):
     """Send the request; the parsed answer, or None if it failed."""
-    global _send_thinking_off
+    global _send_thinking_off, _model_override
 
-    for attempt in (1, 2):
+    thinking_retried = False
+
+    # Each pass fixes one thing (thinking setting, retired model) and asks again
+    for _ in range(6):
+        model = current_model()
         config = {"temperature": 0.7, "maxOutputTokens": MAX_OUTPUT_TOKENS}
 
         if _send_thinking_off:
             config["thinkingConfig"] = {"thinkingBudget": 0}
 
         request = urllib.request.Request(
-            f"{settings.GEMINI_URL}/v1beta/models/{settings.GEMINI_MODEL}:generateContent",
+            f"{settings.GEMINI_URL}/v1beta/models/{model}:generateContent",
             data=json.dumps({**body, "generationConfig": config}).encode(),
             headers={
                 "Content-Type": "application/json",
@@ -99,19 +130,30 @@ def _post(body: dict):
             # is also a 400 and must not switch the setting off for good
             if (
                 error.code == 400
-                and attempt == 1
+                and not thinking_retried
                 and _send_thinking_off
                 and "thinking" in detail.lower()
             ):
-                logger.info("Model %s needs thinking, retrying without the setting", settings.GEMINI_MODEL)
+                logger.info("Model %s needs thinking, retrying without the setting", model)
                 _send_thinking_off = False
+                thinking_retried = True
                 continue
+
+            # The model name is gone: find one that is still there
+            if error.code == 404:
+                _dead_models.add(model)
+                replacement = _find_replacement()
+
+                if replacement:
+                    logger.warning("Gemini model %s no longer exists; using %s", model, replacement)
+                    _model_override = replacement
+                    continue
 
             if error.code == 429:
                 logger.warning("Gemini free quota used up, falling back")
             else:
-                # 400/403: wrong model name or key; 404: model no longer exists
-                logger.error("Gemini error %s for model %s", error.code, settings.GEMINI_MODEL)
+                # 400/403: wrong key; 404 with no replacement: no model to use
+                logger.error("Gemini error %s for model %s", error.code, model)
             return None
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
             logger.warning("Gemini is not reachable, falling back")

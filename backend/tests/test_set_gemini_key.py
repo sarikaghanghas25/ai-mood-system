@@ -15,15 +15,34 @@ from pathlib import Path
 
 import set_gemini_key as tool
 
-state = {"status": 200, "body": None, "seen_key": None}
+state = {"status": 200, "body": None, "seen_key": None, "dead": set(), "models": []}
 
 
 class FakeGemini(BaseHTTPRequestHandler):
+    def do_GET(self):
+        payload = json.dumps({
+            "models": [
+                {"name": f"models/{name}", "supportedGenerationMethods": ["generateContent"]}
+                for name in state["models"]
+            ]
+        }).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_POST(self):
         self.rfile.read(int(self.headers.get("Content-Length", 0)))
         state["seen_key"] = self.headers.get("x-goog-api-key")
-        payload = json.dumps(state["body"] or {}).encode()
-        self.send_response(state["status"])
+        status, body = state["status"], state["body"]
+
+        model = self.path.split("/models/")[-1].split(":")[0]
+        if model in state["dead"]:
+            status, body = 404, {}
+
+        payload = json.dumps(body or {}).encode()
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -41,7 +60,7 @@ GOOD = {"candidates": [{"content": {"parts": [{"text": "Namaste dost!"}]}}]}
 
 class SetGeminiKeyTest(unittest.TestCase):
     def setUp(self):
-        state.update(status=200, body=GOOD, seen_key=None)
+        state.update(status=200, body=GOOD, seen_key=None, dead=set(), models=[])
         self.dir = tempfile.TemporaryDirectory()
         self.env = Path(self.dir.name) / ".env"
 
@@ -130,7 +149,8 @@ class SetGeminiKeyTest(unittest.TestCase):
         out = io.StringIO()
         old_stdin, old_argv = sys.stdin, sys.argv
         sys.stdin = io.StringIO(pasted)
-        sys.argv = ["set_gemini_key.py", "--stdin", "--env-file", str(self.env), "--url", URL, "--no-reload"]
+        sys.argv = ["set_gemini_key.py", "--stdin", "--env-file", str(self.env), "--url", URL,
+                    "--model", "gemini-2.5-flash", "--no-reload"]
 
         try:
             with contextlib.redirect_stdout(out):
@@ -174,25 +194,39 @@ class SetGeminiKeyTest(unittest.TestCase):
             self.assertNotIn("mistake", output)       # nothing of the paste is echoed
             self.assertNotIn("a" * 35, output)
 
+    def test_retired_model_is_replaced_and_its_name_is_saved_with_the_key(self):
+        state.update(
+            dead={"gemini-2.5-flash"},
+            models=["gemini-2.5-flash", "gemini-embedding-001", "gemini-3-flash", "gemini-3-pro"],
+        )
+        code, output = self.run_command("AIza-good-key-0042\n")
+
+        self.assertEqual(code, 0)
+        saved = self.env.read_text().splitlines()
+        self.assertEqual(saved, ["GEMINI_API_KEY=AIza-good-key-0042", "GEMINI_MODEL=gemini-3-flash"])
+        self.assertIn("gemini-3-flash", output)
+        self.assertNotIn("AIza-good-key-0042", output)
+
+    def test_nothing_is_saved_when_no_model_works(self):
+        state.update(dead={"gemini-2.5-flash", "gemini-3-flash"}, models=["gemini-3-flash"])
+        code, output = self.run_command("AIza-good-key-0042\n")
+
+        self.assertEqual(code, 1)
+        self.assertFalse(self.env.exists())
+        self.assertIn("NOT saved", output)
+
+    def test_working_default_model_adds_no_model_line(self):
+        code, _ = self.run_command("AIza-good-key-0042\n")
+
+        self.assertEqual(code, 0)
+        self.assertNotIn("GEMINI_MODEL", self.env.read_text())
+
     def test_command_saves_a_working_key(self):
-        import io
-        import contextlib
-        import sys
-
-        out = io.StringIO()
-        old_stdin, old_argv = sys.stdin, sys.argv
-        sys.stdin = io.StringIO("AIza-good-key-0042\n")
-        sys.argv = ["set_gemini_key.py", "--stdin", "--env-file", str(self.env), "--url", URL, "--no-reload"]
-
-        try:
-            with contextlib.redirect_stdout(out):
-                code = tool.main()
-        finally:
-            sys.stdin, sys.argv = old_stdin, old_argv
+        code, output = self.run_command("AIza-good-key-0042\n")
 
         self.assertEqual(code, 0)
         self.assertEqual(self.env.read_text(), "GEMINI_API_KEY=AIza-good-key-0042\n")
-        self.assertNotIn("AIza-good-key-0042", out.getvalue())
+        self.assertNotIn("AIza-good-key-0042", output)
 
 
 if __name__ == "__main__":

@@ -15,10 +15,28 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 FAKE_KEY = "fake-key-do-not-log-12345"
 
 # Fake server behaviour for the next request, and what it was sent
-state = {"status": 200, "body": None, "requests": [], "reject_thinking": False}
+state = {
+    "status": 200, "body": None, "requests": [], "reject_thinking": False,
+    "dead": set(), "models": [], "list_status": 200, "list_calls": 0,
+}
 
 
 class FakeGemini(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # "Which models do you have?"
+        state["list_calls"] += 1
+        payload = json.dumps({
+            "models": [
+                {"name": f"models/{name}", "supportedGenerationMethods": ["generateContent"]}
+                for name in state["models"]
+            ]
+        }).encode()
+        self.send_response(state["list_status"])
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         state["requests"].append({
@@ -29,6 +47,11 @@ class FakeGemini(BaseHTTPRequestHandler):
 
         sent_body = state["requests"][-1]["body"]
         status, body = state["status"], state["body"]
+
+        # A model name Google has retired
+        model = self.path.split("/models/")[-1].split(":")[0]
+        if model in state["dead"]:
+            status, body = 404, {"error": {"message": f"models/{model} is not found"}}
 
         # Some real models refuse "thinking off"
         if state["reject_thinking"] and "thinkingConfig" in sent_body.get("generationConfig", {}):
@@ -78,6 +101,10 @@ class GeminiChatTest(unittest.TestCase):
             requests=[], reject_thinking=False,
         )
         gemini_chat._send_thinking_off = True
+        state.update(dead=set(), models=[], list_status=200, list_calls=0)
+        gemini_chat._model_override = None
+        gemini_chat._dead_models = set()
+        gemini_chat._candidates = None
 
     def test_returns_the_text_and_sends_what_gemini_expects(self):
         history = [
@@ -126,6 +153,57 @@ class GeminiChatTest(unittest.TestCase):
         self.assertIsNone(ask())
         self.assertEqual(len(state["requests"]), 1)  # no retry
         self.assertTrue(gemini_chat._send_thinking_off)
+
+    def test_a_retired_model_is_replaced_by_one_google_still_has(self):
+        from app.config import settings
+
+        configured = settings.GEMINI_MODEL
+        settings.GEMINI_MODEL = "gemini-2.5-flash"
+        state.update(
+            dead={"gemini-2.5-flash"},
+            models=["gemini-2.5-flash", "gemini-embedding-001", "gemini-3-pro", "gemini-3-flash"],
+        )
+
+        try:
+            self.assertEqual(ask(), "Main yahin hoon. Kya hua?")
+            # retired model refused, then the best one that exists (a flash, not pro or embedding)
+            paths = [r["path"] for r in state["requests"]]
+            self.assertTrue(paths[0].endswith("gemini-2.5-flash:generateContent"))
+            self.assertTrue(paths[-1].endswith("gemini-3-flash:generateContent"))
+            self.assertEqual(state["list_calls"], 1)
+
+            # From then on it goes straight to the working one, no more asking
+            state["requests"].clear()
+            ask()
+            self.assertEqual(len(state["requests"]), 1)
+            self.assertTrue(state["requests"][0]["path"].endswith("gemini-3-flash:generateContent"))
+            self.assertEqual(state["list_calls"], 1)
+        finally:
+            settings.GEMINI_MODEL = configured
+
+    def test_when_every_model_is_gone_it_falls_back(self):
+        from app.config import settings
+
+        configured = settings.GEMINI_MODEL
+        settings.GEMINI_MODEL = "gemini-2.5-flash"
+        state.update(dead={"gemini-2.5-flash", "gemini-3-flash"}, models=["gemini-3-flash"])
+
+        try:
+            self.assertIsNone(ask())
+        finally:
+            settings.GEMINI_MODEL = configured
+
+    def test_if_google_cannot_list_models_it_falls_back(self):
+        from app.config import settings
+
+        configured = settings.GEMINI_MODEL
+        settings.GEMINI_MODEL = "gemini-2.5-flash"
+        state.update(dead={"gemini-2.5-flash"}, list_status=500)
+
+        try:
+            self.assertIsNone(ask())
+        finally:
+            settings.GEMINI_MODEL = configured
 
     def test_same_side_turns_are_joined(self):
         contents = build_contents([
