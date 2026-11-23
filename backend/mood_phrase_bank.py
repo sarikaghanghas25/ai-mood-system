@@ -173,6 +173,26 @@ WORK_SLIP = [
     "lekin badi galti ho gayi ab deal haath se ja sakti hai",
 ]
 
+# Something new and exciting; reused by the builder for
+# "I bought a new car, but got into an accident"
+NEW_THING = [
+    "I bought a new car", "I got my new bike today", "I finally bought a new phone",
+    "we moved into our new flat", "I got a brand new laptop", "I bought my first scooter",
+    "maine nayi gaadi kharidi", "aaj mujhe meri nayi bike mili", "maine naya phone liya",
+    "hum apne naye ghar mein shift hue", "maine naya laptop kharida", "maine apni pehli scooty li",
+]
+
+# It goes wrong at once. Combined with NEW_THING and labelled sad + anxious:
+# the exciting start doesn't make it happy.
+BAD_START = [
+    "but got into an accident the same day", "but it got a big scratch on the first day",
+    "but it broke down within an hour", "but someone hit it in the parking lot",
+    "but I had an accident on the way home", "but a thief broke into it the very first night",
+    "lekin usi din accident ho gaya", "par pehle hi din usme scratch aa gaya",
+    "lekin ghar aate hi wo kharab ho gayi", "par parking mein kisi ne tod di",
+    "lekin raste mein hi meri gaadi ka accident ho gaya", "par pehli hi raat chori ho gayi",
+]
+
 # (setup, the setup's own moods, what happened next, moods of the whole sentence)
 CONTRAST_PATTERNS = [
     (KINDNESS, ["happy"], BETRAYED_AFTER_HELP, ["angry", "sad"]),
@@ -182,6 +202,7 @@ CONTRAST_PATTERNS = [
     (RESCUE, ["neutral"], HURT_WHILE_HELPING, ["sad"]),
     (SECRET_FUN, ["happy"], CAUGHT_BY_FAMILY, ["anxious"]),
     (WORK_GOING_WELL, ["happy"], WORK_SLIP, ["anxious", "stressed"]),
+    (NEW_THING, ["happy"], BAD_START, ["sad", "anxious"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words
@@ -500,6 +521,13 @@ DOMAIN_EVENTS = [
         "my post went viral", "I adopted a puppy today", "we won the cricket match",
         "I learned to ride a bike", "my painting got selected for the exhibition",
         "aaj ek pyaara sa puppy ghar laaye", "hamari team match jeet gayi",
+        # Gifts and surprises
+        "my sister gifted me a watch on my birthday", "my dad bought me a new laptop as a surprise",
+        "my best friend gave me a lovely gift today", "my brother gave me a phone as a present",
+        "I received a surprise gift from my colleagues", "my friend gave me chocolates and a card",
+        "dost ne mujhe ghadi gift ki", "papa ne mujhe naya phone dilaya surprise mein",
+        "mummy mere liye ek pyaara sa gift layi", "meri behan ne mujhe birthday pe bag diya",
+        "dost ne mujhe ek gift diya aur main bahut khush hoon",
         # Enjoying something, with "best" used the way people say it:
         # "a best movie", "best song", "ekdum best" (no "the")
         "I am watching a best web series right now", "listening to a best song on repeat",

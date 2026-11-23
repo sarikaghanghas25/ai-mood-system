@@ -1386,6 +1386,9 @@ function NotificationBell({ history, ready, onAction }) {
   );
 }
 
+// Chat replies get a mood tag only when the mood is at least this sure
+const CHAT_TAG_MIN_CONFIDENCE = 0.5;
+
 // How many history entries are shown at first and added by "Show more"
 const HISTORY_PAGE = 20;
 
@@ -5247,7 +5250,13 @@ function App() {
                               "bot" &&
                               message.mood &&
                               message.mood !==
-                                "neutral" && (
+                                "neutral" &&
+                              // A mood the app is under 50% sure of is a
+                              // guess ("Angry 27%" on a plain message)
+                              (message.confidence ===
+                                null ||
+                                message.confidence >=
+                                  CHAT_TAG_MIN_CONFIDENCE) && (
                                 <div className="chat-mood-tag">
                                   {botMood.emoji}{" "}
                                   {botMood.label}

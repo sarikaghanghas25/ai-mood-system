@@ -23,9 +23,15 @@ from app.services.claude_chat import (
 
 logger = logging.getLogger(__name__)
 
-# Keep replies chat-sized; small local models ramble otherwise
-MAX_REPLY_TOKENS = 300
-TIMEOUT_SECONDS = 60
+# Keep replies chat-sized; small local models ramble otherwise. A big local
+# model writes only ~7 words a second on a laptop, so every extra token is
+# time the user waits.
+MAX_REPLY_TOKENS = 220
+TIMEOUT_SECONDS = 120
+
+# Ollama unloads the model after 5 idle minutes, and loading it again adds
+# 10-20 seconds to the next reply; keep it in memory for a while instead
+KEEP_MODEL_LOADED = "30m"
 
 
 def generate_local_reply(message: str, history, mood_result: dict, intent: str):
@@ -43,6 +49,7 @@ def generate_local_reply(message: str, history, mood_result: dict, intent: str):
             "model": settings.OLLAMA_MODEL,
             "messages": messages,
             "stream": False,
+            "keep_alive": KEEP_MODEL_LOADED,
             "options": {"temperature": 0.7, "num_predict": MAX_REPLY_TOKENS},
         }).encode(),
         headers={"Content-Type": "application/json"},
