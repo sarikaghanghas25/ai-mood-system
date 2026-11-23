@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+*.db
+.env
+tests/
+# Only needed to retrain the model on your laptop
+app/ai/raw_datasets/
+build_multilabel_dataset.py
+convert_dataset.py
+train_model.py
+train_multilabel_model.py
+evaluate_mood_model.py
+mood_phrase_bank.py

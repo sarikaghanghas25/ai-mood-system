@@ -19,7 +19,10 @@ import "./App.css";
 import "./polish.css";
 import "./dark.css";
 
-const API_URL = "http://127.0.0.1:8000";
+// Set VITE_API_URL when building for a host; locally it points at the dev backend
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
 
 const MOOD_META = {
   happy: {

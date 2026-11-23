@@ -3,7 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database.database import add_missing_columns
+from app.config import settings
+from app.database.database import Base, add_missing_columns, engine
+import app.models  # noqa: F401  registers the tables on Base
 from app.services.mood_ai import detect_mood_with_ai
 
 from app.routers.auth import router as auth_router
@@ -21,6 +23,15 @@ from app.routers.chatbot import router as chatbot_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # With the default secret anyone could forge a login token
+    if not settings.DEBUG and settings.JWT_SECRET_KEY == "change-this-secret-key":
+        raise RuntimeError(
+            "Set JWT_SECRET_KEY to a long random value before running with DEBUG=false"
+        )
+
+    # A brand-new database (first deploy) has no tables yet; existing ones are left alone
+    Base.metadata.create_all(bind=engine)
+
     # New columns (e.g. mood_history.moods) on an existing database
     add_missing_columns()
 
@@ -57,6 +68,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     # Any local port: Vite moves to 5174, 5175... when 5173 is taken
+    allow_origins=[
+        origin.strip().rstrip("/")
+        for origin in settings.CORS_ORIGINS.split(",")
+        if origin.strip()
+    ],
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],

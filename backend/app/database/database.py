@@ -4,9 +4,25 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import settings
 
 
+def database_url() -> str:
+    """Hosts like Neon and Heroku hand out "postgres://", SQLAlchemy wants "postgresql://"."""
+    url = settings.DATABASE_URL
+
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+
+    return url
+
+
+DATABASE_URL = database_url()
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    DATABASE_URL,
+    # SQLite only: let FastAPI's worker threads share the connection
+    connect_args={"check_same_thread": False} if IS_SQLITE else {},
+    # Hosted Postgres closes idle connections; reconnect instead of failing
+    pool_pre_ping=not IS_SQLITE,
 )
 
 SessionLocal = sessionmaker(
