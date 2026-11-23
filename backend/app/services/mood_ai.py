@@ -30,6 +30,9 @@ _model = None
 # ML probability above which the ML model's mood beats the keyword rules
 ML_TRUST_THRESHOLD = 0.6
 
+# An extra mood from the model must reach this probability to be listed
+MIXED_MOOD_MIN = 0.55
+
 
 # ============================================================
 # TEXT NORMALIZATION
@@ -1645,14 +1648,22 @@ def detect_mood_with_ai(text: str):
     # Neutral only stays when nothing else was detected.
     # --------------------------------------------------------
 
+    # Only moods the model was actually sure about are added. When
+    # nothing passes its thresholds it still returns its best guess
+    # (e.g. "angry" at 36% for "boring"), which must not leak in here.
     moods = [final_mood] + [
         mood for mood in ml_result["moods"]
         if mood != final_mood
+        and ml_probabilities.get(mood, 0.0) >= MIXED_MOOD_MIN
     ]
 
     emotional_moods = [mood for mood in moods if mood != "neutral"]
 
     moods = emotional_moods[:3] if emotional_moods else ["neutral"]
+
+    # The main mood always agrees with the list ("neutral" with
+    # ["angry"] showed two different answers on one result)
+    final_mood = moods[0]
 
     # --------------------------------------------------------
     # Related emotions
