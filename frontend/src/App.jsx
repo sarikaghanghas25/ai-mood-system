@@ -2330,9 +2330,27 @@ function AffirmationCard({ mood }) {
     setFlipped(!flipped);
   };
 
-  // Today's little good thing, and whether it has been done
-  const goodThing = DAILY_GOOD[dailyIndex(DAILY_GOOD.length, day, 1)];
+  // Today's little good thing: the date's pick, unless the user swapped it
+  // today (remembered), and whether it has been done
+  const goodKey = `good_thing_index_${day}`;
   const doneKey = `good_thing_done_${day}`;
+
+  const [goodIndex, setGoodIndex] = useState(() => {
+    const picked = dailyIndex(DAILY_GOOD.length, day, 1);
+
+    try {
+      const saved = localStorage.getItem(goodKey);
+      const number = Number(saved);
+
+      return saved !== null && Number.isInteger(number) && number >= 0 && number < DAILY_GOOD.length
+        ? number
+        : picked;
+    } catch {
+      return picked;
+    }
+  });
+
+  const goodThing = DAILY_GOOD[goodIndex];
 
   const [done, setDone] = useState(() => {
     try {
@@ -2341,6 +2359,21 @@ function AffirmationCard({ mood }) {
       return false;
     }
   });
+
+  // A different thing to do: the tick belongs to the old one, so it resets
+  const changeGoodThing = () => {
+    const upcoming = (goodIndex + 1) % DAILY_GOOD.length;
+
+    setGoodIndex(upcoming);
+    setDone(false);
+
+    try {
+      localStorage.setItem(goodKey, String(upcoming));
+      localStorage.removeItem(doneKey);
+    } catch {
+      // Not remembered; it still works for this visit
+    }
+  };
 
   const toggleDone = () => {
     const next = !done;
@@ -2358,7 +2391,13 @@ function AffirmationCard({ mood }) {
     <div className="affirmation-card">
       <div className="affirmation-heading">
         <strong>💌 Daily Affirmation</strong>
-        <button type="button" onClick={next}>
+        <button
+          type="button"
+          onClick={() => {
+            next();
+            changeGoodThing();
+          }}
+        >
           New one ↻
         </button>
       </div>
@@ -2373,7 +2412,7 @@ function AffirmationCard({ mood }) {
       <div className={`affirmation-good ${done ? "is-done" : ""}`}>
         <div>
           <small>✨ Today&apos;s little good thing</small>
-          <p>{goodThing}</p>
+          <p key={goodIndex}>{goodThing}</p>
         </div>
 
         <button

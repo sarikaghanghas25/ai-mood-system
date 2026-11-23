@@ -3844,3 +3844,21 @@ body.dark-mode .password-toggle[aria-pressed="true"] {
   background: white;
   color: #b0559a;
 }
+
+/* A new good thing fades in when "New one" is pressed */
+.affirmation-good p {
+  animation: good-in 0.5s var(--ease-out) both;
+}
+
+@keyframes good-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .affirmation-good p {
+    animation: none;
+  }
+}
