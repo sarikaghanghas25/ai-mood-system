@@ -3381,3 +3381,48 @@ body {
   font-size: 11px;
   opacity: 0.9;
 }
+
+/* ---------- Show / hide password ---------- */
+
+.password-toggle {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #8a94b8;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s var(--ease-spring);
+}
+
+.password-toggle:hover {
+  background: #eef2ff;
+  color: #4f6fff;
+}
+
+.password-toggle:active {
+  transform: scale(0.9);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid #7185ff;
+  outline-offset: 1px;
+}
+
+.password-toggle[aria-pressed="true"] {
+  color: #4f6fff;
+}
+
+body.dark-mode .password-toggle:hover {
+  background: #232c55;
+  color: #a9b7ff;
+}
+
+body.dark-mode .password-toggle[aria-pressed="true"] {
+  color: #a9b7ff;
+}

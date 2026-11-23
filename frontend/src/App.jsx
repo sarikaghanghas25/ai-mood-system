@@ -1043,6 +1043,27 @@ function MoodGarden({ history }) {
   );
 }
 
+// Eye / eye-off for the show-password button
+function EyeIcon({ off }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path d="M4 4l16 16" />}
+    </svg>
+  );
+}
+
 const SELF_CARE = [
   { id: "water", icon: "💧", text: "Drink a glass of water" },
   { id: "breathe", icon: "🌬️", text: "1 minute of slow breathing" },
@@ -2375,6 +2396,9 @@ function App() {
 
   const [authLoading, setAuthLoading] = useState(false);
 
+  // Eye button on the password field
+  const [showPassword, setShowPassword] = useState(false);
+
   const [authError, setAuthError] = useState("");
 
   const [text, setText] = useState("");
@@ -3694,7 +3718,11 @@ function App() {
                 <span>🔒</span>
 
                 <input
-                  type="password"
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
                   placeholder="Enter your password"
                   value={
                     authForm.password
@@ -3709,6 +3737,33 @@ function App() {
                   }
                   required
                 />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() =>
+                    setShowPassword(
+                      (value) => !value
+                    )
+                  }
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                  aria-pressed={
+                    showPassword
+                  }
+                  title={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  <EyeIcon
+                    off={showPassword}
+                  />
+                </button>
               </div>
             </label>
 
