@@ -277,6 +277,27 @@ DOMAIN_EVENTS = [
         "pata nahi wo mujhse naraz hai kya", "kal uske ghar walon se milna hai",
     ]),
 
+    # Something bad happens to a friend (caught cheating, suspended, failed):
+    # sadness and worry for them, not anger and not happiness
+    (["sad", "anxious"], [
+        "my friend got caught with a phone in the exam hall",
+        "my friend was caught cheating and the teacher took his paper",
+        "the invigilator caught my roommate copying and sent her out",
+        "my friend got suspended from college for cheating",
+        "my best friend failed the exam and can't stop crying",
+        "my roommate got thrown out of the hostel",
+        "my friend's whole year is wasted because he failed",
+        "mere dost ko exam mein chitting karte hue pakad liya",
+        "mera dost exam hall mein pakda gaya aur teacher ne copy cheen li",
+        "teacher ne mere dost ki copy cheen li aur use bahar bhej diya",
+        "mere dost ka UMC case ban gaya hai ab principal se milna hai",
+        "meri roommate ko hostel se nikal diya gaya",
+        "mera dost college se suspend ho gaya",
+        "mera dost exam mein fail ho gaya aur bahut ro raha hai",
+        "dost ko exam mein phone ke saath pakad liya ab pata nahi kya hoga",
+        "mere dost ne exam mein cheating ki thi ab bahut darr raha hai",
+    ]),
+
     # ---------------- HEALTH ----------------
     (["anxious"], [
         "I found a lump and I am waiting for the test results",

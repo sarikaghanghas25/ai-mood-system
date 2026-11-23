@@ -109,6 +109,7 @@ USER_REPORTED = [
     ("aaj m ek ldki ko buhari thi lakin usko chate time merko chot lgyi", {"sad"}),
     ("aaj bahut thak gayi hoon", {"tired"}),
     ("main is kaam se pak gayi hoon", {"stressed"}),
+    ("mera dost exam room m phone leke gya or pkda gya ab usko teacher ne too se bhar nikal dia or umc bna di", {"sad", "anxious"}),
 ]
 
 
