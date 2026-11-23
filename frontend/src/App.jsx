@@ -1822,6 +1822,10 @@ function useSpeechInput(text, setText) {
     const before = text.trim() ? `${text.trim()} ` : "";
 
     recognition.onresult = (event) => {
+      // Late results of a session that was already halted must not
+      // write into the text box (e.g. bring back text after "Clear")
+      if (recognitionRef.current !== recognition) return;
+
       const spoken = Array.from(event.results)
         .map((result) => result[0].transcript)
         .join(" ");
@@ -1829,8 +1833,12 @@ function useSpeechInput(text, setText) {
       setText(before + spoken.trim());
     };
 
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) setListening(false);
+    };
+    recognition.onerror = () => {
+      if (recognitionRef.current === recognition) setListening(false);
+    };
 
     recognitionRef.current = recognition;
     recognition.start();
@@ -1842,7 +1850,16 @@ function useSpeechInput(text, setText) {
     setListening(false);
   };
 
-  return { supported: Boolean(SpeechRecognition), listening, start, stop };
+  // Stop at once and drop anything still being recognised; used when the
+  // text is analysed or cleared, so the microphone doesn't keep listening
+  const halt = () => {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    recognition?.abort();
+    setListening(false);
+  };
+
+  return { supported: Boolean(SpeechRecognition), listening, start, stop, halt };
 }
 
 /*
@@ -3216,6 +3233,9 @@ function App() {
       return;
     }
 
+    // Analysing ends the dictation: stop the microphone
+    speech.halt();
+
     // Still inside the click, so the browser allows the music later
     if (musicOn) ambientMusic.unlock();
 
@@ -3276,6 +3296,8 @@ function App() {
   };
 
   const clearAnalyzer = () => {
+    speech.halt();
+
     setText("");
 
     setResult(null);
