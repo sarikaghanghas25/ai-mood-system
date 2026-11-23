@@ -193,6 +193,27 @@ BAD_START = [
     "lekin raste mein hi meri gaadi ka accident ho gaya", "par pehli hi raat chori ho gayi",
 ]
 
+# A present I was just given; reused by the builder for
+# "my friend gave me a watch, but it broke on the way home"
+GIFT_GIVEN = [
+    "my friend gave me a watch", "my brother gifted me a phone", "my best friend gave me a lovely gift",
+    "my sister gave me a bag for my birthday", "my cousin gave me a pair of earphones",
+    "my friend gave me a pen as a present",
+    "dost ne mujhe ghadi gift ki", "bhai ne mujhe naya phone diya", "meri dost ne mujhe ek pyaara gift diya",
+    "behan ne mujhe birthday pe bag diya", "mere cousin ne mujhe earphones gift kiye",
+]
+
+# It breaks or is lost almost at once. Combined with GIFT_GIVEN and labelled
+# sad only (nobody to be angry at, nothing to be afraid of).
+GIFT_LOST = [
+    "but it broke on the way home", "but in my home way it break", "but I lost it the same day",
+    "but it fell and cracked before I even reached home", "but the strap snapped within an hour",
+    "but it stopped working the very next day",
+    "lekin ghar aate waqt tut gayi", "par ghar jaate hue raste mein gir ke toot gaya",
+    "lekin wahi din kho gaya", "par ek ghante mein hi kharab ho gaya",
+    "lekin agle hi din chalna band ho gaya",
+]
+
 # (setup, the setup's own moods, what happened next, moods of the whole sentence)
 CONTRAST_PATTERNS = [
     (KINDNESS, ["happy"], BETRAYED_AFTER_HELP, ["angry", "sad"]),
@@ -203,6 +224,7 @@ CONTRAST_PATTERNS = [
     (SECRET_FUN, ["happy"], CAUGHT_BY_FAMILY, ["anxious"]),
     (WORK_GOING_WELL, ["happy"], WORK_SLIP, ["anxious", "stressed"]),
     (NEW_THING, ["happy"], BAD_START, ["sad", "anxious"]),
+    (GIFT_GIVEN, ["happy"], GIFT_LOST, ["sad"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words

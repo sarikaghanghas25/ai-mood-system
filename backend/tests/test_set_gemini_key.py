@@ -149,6 +149,20 @@ class SetGeminiKeyTest(unittest.TestCase):
         self.assertIn("using only the key", output)
         self.assertNotIn(key, output)
 
+    def test_newer_key_shape_is_taken_out_of_a_longer_paste_too(self):
+        key = "AQ." + "Ab8x-_" * 8
+        code, output = self.run_command(f"API Key\n{key}\nName  Default Gemini API Key\n")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(self.env.read_text(), f"GEMINI_API_KEY={key}\n")
+        self.assertNotIn(key, output)
+
+    def test_a_copied_command_is_refused(self):
+        code, output = self.run_command("pbpaste | wc -w\n")
+
+        self.assertEqual(code, 1)
+        self.assertFalse(self.env.exists())
+
     def test_text_with_no_key_or_two_keys_is_refused_and_not_echoed(self):
         two = "AIza" + "a" * 35 + " and " + "AIza" + "b" * 35
         for pasted in ("some command I copied by mistake\nsecond line", two):

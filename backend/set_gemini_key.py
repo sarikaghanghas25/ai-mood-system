@@ -2,14 +2,16 @@
 Puts your Gemini API key into backend/.env, checks that it works and makes
 the backend pick it up. The key is never printed (only its last 4 letters).
 
-Easiest way: copy the key from https://aistudio.google.com/apikey, then
+Easiest way: run this, and when it asks, copy the key from
+https://aistudio.google.com/apikey ("Copy key") and paste it (it stays hidden):
 
     cd backend
-    pbpaste | venv/bin/python set_gemini_key.py --stdin
-
-or run without --stdin and paste when asked (typing is hidden):
-
     venv/bin/python set_gemini_key.py
+
+Or put the key on the clipboard first and run (don't copy anything else in
+between, or that is what gets read):
+
+    pbpaste | venv/bin/python set_gemini_key.py --stdin
 """
 
 import argparse
@@ -30,6 +32,10 @@ DEFAULT_URL = "https://generativelanguage.googleapis.com"
 DEFAULT_MODEL = "gemini-2.5-flash"
 
 KEY_LINE = re.compile(r"^\s*GEMINI_API_KEY\s*=")
+
+# Google keys come in two shapes: the older "AIza" + 35 characters and the
+# newer "AQ." + a long run of characters
+KEY_SHAPE = re.compile(r"AIza[0-9A-Za-z_\-]{35}|AQ\.[0-9A-Za-z_\-]{30,}")
 
 
 def mask(key: str) -> str:
@@ -111,7 +117,7 @@ def main() -> int:
     if re.search(r"\s", key):
         # Often the whole row or page was copied, not just the key: take the
         # key out of it, but only if it is clearly one key
-        found = set(re.findall(r"AIza[0-9A-Za-z_\-]{35}", key))
+        found = set(KEY_SHAPE.findall(key))
 
         if len(found) == 1:
             key = found.pop()
@@ -121,8 +127,8 @@ def main() -> int:
             print(
                 f"That doesn't look like one key: the clipboard has {words} words "
                 f"on {lines} line(s) and {'no' if not found else 'several'} Google key inside. "
-                "Copy only the key with the copy icon next to it in AI Studio "
-                "(it starts with AIza). Nothing changed."
+                "Copy only the key: the copy icon next to it, or the \"Copy key\" "
+                "button, in AI Studio (it starts with AIza or AQ.). Nothing changed."
             )
             return 1
 
