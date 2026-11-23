@@ -110,6 +110,7 @@ USER_REPORTED = [
     ("aaj bahut thak gayi hoon", {"tired"}),
     ("main is kaam se pak gayi hoon", {"stressed"}),
     ("aaj merko presentation deni h", {"anxious"}),
+    ("I am watching a best movie", {"happy"}),
     ("aaj m dost k sath clg bunk krke gyi lakin wha papa ne dekh lia", {"anxious"}),
     ("mera dost exam room m phone leke gya or pkda gya ab usko teacher ne too se bhar nikal dia or umc bna di", {"sad", "anxious"}),
 ]

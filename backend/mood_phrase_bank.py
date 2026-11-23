@@ -448,6 +448,14 @@ DOMAIN_EVENTS = [
         "my post went viral", "I adopted a puppy today", "we won the cricket match",
         "I learned to ride a bike", "my painting got selected for the exhibition",
         "aaj ek pyaara sa puppy ghar laaye", "hamari team match jeet gayi",
+        # Enjoying something, with "best" used the way people say it:
+        # "a best movie", "best song", "ekdum best" (no "the")
+        "I am watching a best web series right now", "listening to a best song on repeat",
+        "this is a best match I have seen in years", "had a best dinner with my family",
+        "what a best day today", "I am reading a best novel and cannot put it down",
+        "aaj best match dekh raha hoon", "ye gaana ekdum best hai",
+        "bahut best series mil gayi dekhne ko", "aaj ka khana ekdum best tha",
+        "best din tha aaj", "aaj best picture dekhi dosto ke saath",
     ]),
     (["angry"], [
         "someone cut the queue in front of me", "people were rude to me at the store",
