@@ -30,6 +30,7 @@ FILLER_WORDS = {
     "ka", "ke", "ko", "hai", "h", "hu", "hoon", "tha", "thi", "ho", "se",
     "ne", "bhi", "aur", "or", "toh", "to", "ek", "rahi", "raha", "rha", "rhi",
     "gya", "gyi", "gaya", "gayi", "hua", "hui", "wha", "waha", "p", "pe", "par",
+    "wale", "wali", "wala", "walon",
 }
 
 EPSILON = 1e-4

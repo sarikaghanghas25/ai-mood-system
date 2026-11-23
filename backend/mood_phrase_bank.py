@@ -126,6 +126,9 @@ SECRET_FUN = [
     "aaj tuition chhodke dosto ke saath movie dekhne gaya", "mummy ko library bolke cafe chali gayi",
     "lecture bunk karke dosto ke saath ghoomne gayi", "ghar pe jhooth bolke party mein gaya tha",
     "class chhodke dosto ke saath bahar khaane gaye", "bina bataye dosto ke saath trip pe chali gayi",
+    "I had a few drinks with my friends tonight and went home", "I drank at a friend's party without telling anyone",
+    "aaj dosto ke saath party mein peeke ghar gaya", "maine pehli baar dosto ke saath daaru pi li",
+    "ghar walon se chhupke dosto ke saath pub chali gayi thi",
 ]
 
 # What happens next. Combined with SECRET_FUN and labelled anxious only:
@@ -137,6 +140,9 @@ CAUGHT_BY_FAMILY = [
     "lekin wahan papa ne dekh liya", "par chacha ne dekh liya ab ghar pe bata denge",
     "lekin mummy ko pata chal gaya", "par padosi ne dekh liya ab ghar pe bol dega",
     "lekin teacher ne papa ko phone kar diya", "aur ghar pe call aa gaya",
+    "and everyone at home was upset when I walked in", "and now my parents know about it",
+    "aur ghar pe sab naraz the aur papa ko pata chal gaya", "par ghar pahunchte hi sabko pata chal gaya",
+    "lekin papa ko kisi ne bata diya", "aur ghar pe sab gusse mein baithe the",
 ]
 
 # (setup, the setup's own moods, what happened next, moods of the whole sentence)
@@ -466,6 +472,37 @@ DOMAIN_EVENTS = [
     # ---------------- KINDNESS / PROUD MOMENTS ----------------
     # Helping someone feels good, even when the place (hospital, accident) sounds bad
     (["happy"], KINDNESS),
+
+    # Catching a criminal and handing them to the police: pride and relief,
+    # with the adrenaline of having faced danger. Not neutral.
+    (["happy", "anxious"], [
+        "I caught a pickpocket and handed him over to the police",
+        "I stopped a thief who snatched a lady's bag and called the police",
+        "I helped the police catch a criminal in my area",
+        "I chased a robber down the street and the police arrested him",
+        "I saw a man harassing a girl, caught him and gave him to the police",
+        "I spotted a suspicious man at the station and the police caught him",
+        "maine ek chor ko pakad ke police ke hawale kar diya",
+        "maine ek chain snatcher ko pakda aur police ko de diya",
+        "ek badmaash ko pakadne mein maine police ki madad ki",
+        "bus mein jeb katre ko pakad ke police ko pakda diya",
+        "maine ek sandigdh aadmi ko pakadwaya aur police le gayi",
+    ]),
+
+    # The opposite: it is someone I care about who got into trouble with the
+    # police. Without these, "police" alone started to mean happy.
+    (["sad", "anxious"], [
+        "my brother was arrested by the police and we don't know what to do",
+        "the police took my friend away last night",
+        "my cousin got picked up by the police for fighting",
+        "police came to our house looking for my uncle",
+        "my father was called to the police station and mom is crying",
+        "mere bhai ko police pakad ke le gayi",
+        "police ne mere chacha ko utha liya aur ghar mein sab ro rahe hain",
+        "mere dost par police case ho gaya hai",
+        "ghar pe police aayi thi aur sab bahut dar gaye",
+        "papa ko police station bulaya hai aur mummy ghabra gayi hain",
+    ]),
 
     # ---------------- MISHAP + SCARED OF TELLING FAMILY ----------------
     # Nobody else is to blame, so this is sad + anxious, not angry

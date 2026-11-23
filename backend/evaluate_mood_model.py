@@ -111,6 +111,8 @@ USER_REPORTED = [
     ("main is kaam se pak gayi hoon", {"stressed"}),
     ("aaj merko presentation deni h", {"anxious"}),
     ("I am watching a best movie", {"happy"}),
+    ("aaj mne shrab pi or ghr p gya sab sore the or papa ko pta cha gya", {"anxious"}),
+    ("I met a terrorist and I catch him and hand him over to police", {"happy", "anxious"}),
     ("aaj m dost k sath clg bunk krke gyi lakin wha papa ne dekh lia", {"anxious"}),
     ("mera dost exam room m phone leke gya or pkda gya ab usko teacher ne too se bhar nikal dia or umc bna di", {"sad", "anxious"}),
 ]
