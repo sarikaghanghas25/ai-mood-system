@@ -926,6 +926,44 @@ body.dark-mode .bell-caught-up {
   color: #a3abbc;
 }
 
+body.dark-mode .history-search {
+  border: 1px solid #2b3a5a;
+  background: #141d35;
+}
+
+body.dark-mode .history-filters button {
+  border: 1px solid #2b3a5a;
+  background: #1c1f2c;
+  color: #a7b2d3;
+}
+
+body.dark-mode .history-filters button:hover {
+  border-color: #2b345a;
+}
+
+body.dark-mode .history-filters button.is-active {
+  background: #161f3b;
+  color: #847ddc;
+}
+
+body.dark-mode .history-day {
+  color: #a3abbc;
+}
+
+body.dark-mode .history-more small {
+  color: #a3abbc;
+}
+
+body.dark-mode .history-more button {
+  border: 1px solid #2b345a;
+  background: #161f3b;
+  color: #847ddc;
+}
+
+body.dark-mode .history-more button:hover {
+  background: #182140;
+}
+
 /* ---------- Hand-written ---------- */
 
 body.dark-mode {

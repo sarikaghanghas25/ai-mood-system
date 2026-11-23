@@ -730,6 +730,13 @@ EXTRA_NEUTRAL = [
     "I have to renew my passport", "we are ordering pizza tonight", "I am cleaning my room",
     "the train leaves at six", "I am writing an email", "I just finished lunch",
     "aaj mausam saaf hai", "bus das baje aayegi", "kal sunday hai", "maine aaj daal chawal khaye",
+    # Everyday chores in the "karni hai / bharna hai" forms, so those endings
+    # don't read as nerves (they do in "presentation deni hai")
+    "kal ghar ki safai karni hai", "mujhe kamre ki safai karni hai", "mujhe paani ka bill bharna hai",
+    "kal gaadi ki servicing karani hai", "mujhe library mein kitaabein wapas karni hain",
+    "aaj shaam ko kapde press karne hain", "mujhe apna kamra theek karna hai",
+    "aaj dukaan se saaman lana hai", "mujhe mummy ke saath bazaar jaana hai",
+    "I have to clean the house tomorrow", "I need to pay the electricity bill",
     "main kapde dho raha hoon", "shaam ko gym jaunga", "abhi email likh raha hoon",
     "kal bank jaana hai", "main bazaar se sabzi laaya", "abhi news dekh raha hoon",
     "I have a dentist appointment at five", "I went to collect my blood test report",

@@ -33,6 +33,10 @@ ML_TRUST_THRESHOLD = 0.6
 # An extra mood from the model must reach this probability to be listed
 MIXED_MOOD_MIN = 0.55
 
+# Below this the model has no real answer (every mood is a long shot): the
+# result is "nothing stands out" instead of a mood it is 7% sure about
+LOW_CONFIDENCE = 0.25
+
 
 # ============================================================
 # TEXT NORMALIZATION
@@ -1688,6 +1692,14 @@ def detect_mood_with_ai(text: str):
     else:
         final_mood = ml_mood
         confidence = ml_confidence
+
+        # No rule fired and the model is unsure of every mood ("merko
+        # project bnana h": anxious 7%). Showing that mood, with a
+        # breathing nudge, would be a guess dressed up as a result.
+        if ml_confidence < LOW_CONFIDENCE and ml_mood != "neutral":
+            final_mood = "neutral"
+            # How sure we are that no strong emotion is present
+            confidence = round(1 - ml_confidence, 4)
 
     # --------------------------------------------------------
     # All moods present (mixed emotions)

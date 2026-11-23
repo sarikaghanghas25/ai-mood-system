@@ -70,9 +70,31 @@ class AmbientMusic {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
 
-    if (!this.ctx) this.ctx = new AudioContext();
-    if (this.ctx.state === "suspended") this.ctx.resume();
+    if (!this.ctx) {
+      this.ctx = new AudioContext();
+
+      // Browsers pause audio when the tab is hidden, the screen locks or
+      // another app takes over (Safari reports "interrupted"). Nothing
+      // restarts it by itself, so while music is on, wake it up again
+      this.ctx.addEventListener("statechange", this.keepRunning);
+      document.addEventListener("visibilitychange", this.keepRunning);
+      window.addEventListener("focus", this.keepRunning);
+      window.addEventListener("pageshow", this.keepRunning);
+    }
+
+    if (this.ctx.state !== "running") this.ctx.resume();
   }
+
+  // Resume the audio if it was paused while a sound should be playing
+  keepRunning = () => {
+    if (!this.session || !this.ctx || document.visibilityState === "hidden") return;
+
+    if (this.ctx.state !== "running") {
+      this.ctx.resume().catch(() => {
+        // Needs a tap first; the next click on the page unlocks it
+      });
+    }
+  };
 
   get isPlaying() {
     return Boolean(this.session);
@@ -86,6 +108,8 @@ class AmbientMusic {
 
   play(mood, sound = "auto") {
     if (!this.ctx) return;
+
+    if (this.ctx.state !== "running") this.ctx.resume().catch(() => {});
 
     // Crossfade from whatever was playing
     this.stop();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Area,
@@ -1359,6 +1359,33 @@ function NotificationBell({ history, ready, onAction }) {
     </div>
   );
 }
+
+// How many history entries are shown at first and added by "Show more"
+const HISTORY_PAGE = 20;
+
+// "Today", "Yesterday" or the date, to group the history by day
+const dayLabel = (item) => {
+  const date = parseServerDate(item.created_at || item.timestamp || item.date);
+  if (!date) return "Earlier";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+
+  const difference = Math.round((today - day) / (24 * 60 * 60 * 1000));
+
+  if (difference === 0) return "Today";
+  if (difference === 1) return "Yesterday";
+
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  });
+};
 
 const SELF_CARE = [
   { id: "water", icon: "💧", text: "Drink a glass of water" },
@@ -2851,6 +2878,11 @@ function App() {
   // doesn't flash a "welcome" while it is still loading)
   const [historyReady, setHistoryReady] = useState(false);
 
+  // Mood History page: how many are shown, the mood filter and the search
+  const [historyShown, setHistoryShown] = useState(HISTORY_PAGE);
+  const [historyFilter, setHistoryFilter] = useState("all");
+  const [historyQuery, setHistoryQuery] = useState("");
+
   const [trend, setTrend] = useState([]);
 
   const [insights, setInsights] = useState(null);
@@ -3721,6 +3753,27 @@ function App() {
    */
 
   const latestHistory = history?.[0];
+
+  // Mood History page: every entry, filtered by mood and search text
+  const historyQueryText = historyQuery.trim().toLowerCase();
+
+  const historyFiltered = history.filter(
+    (item) =>
+      (historyFilter === "all" ||
+        historyMoods(item).includes(historyFilter)) &&
+      (!historyQueryText ||
+        String(item.text || "")
+          .toLowerCase()
+          .includes(historyQueryText))
+  );
+
+  // How many entries each mood chip would show
+  const historyMoodCounts = {};
+  history.forEach((item) => {
+    historyMoods(item).forEach((name) => {
+      historyMoodCounts[name] = (historyMoodCounts[name] || 0) + 1;
+    });
+  });
 
   const latestMood =
     result?.mood ||
@@ -5981,9 +6034,11 @@ function App() {
                     </h2>
 
                     <p>
-                      Your latest
-                      emotional
-                      check-ins.
+                      All your check-ins
+                      are saved here
+                      {history.length > 0
+                        ? ` (${history.length} so far).`
+                        : "."}
                     </p>
                   </div>
 
@@ -6016,28 +6071,88 @@ function App() {
                   </div>
                 </div>
 
+                {history.length > 0 && (
+                  <div className="history-tools">
+                    <input
+                      type="search"
+                      className="history-search"
+                      placeholder="Search your check-ins..."
+                      value={historyQuery}
+                      onChange={(event) => {
+                        setHistoryQuery(event.target.value);
+                        setHistoryShown(HISTORY_PAGE);
+                      }}
+                      aria-label="Search your check-ins"
+                    />
+
+                    <div className="history-filters">
+                      <button
+                        type="button"
+                        className={historyFilter === "all" ? "is-active" : ""}
+                        onClick={() => {
+                          setHistoryFilter("all");
+                          setHistoryShown(HISTORY_PAGE);
+                        }}
+                      >
+                        All <b>{history.length}</b>
+                      </button>
+
+                      {Object.keys(MOOD_META)
+                        .filter((name) => historyMoodCounts[name])
+                        .map((name) => (
+                          <button
+                            key={name}
+                            type="button"
+                            className={historyFilter === name ? "is-active" : ""}
+                            onClick={() => {
+                              setHistoryFilter(name);
+                              setHistoryShown(HISTORY_PAGE);
+                            }}
+                          >
+                            {moodInfo(name).emoji} {moodInfo(name).label}{" "}
+                            <b>{historyMoodCounts[name]}</b>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="history-list">
                   {history.length >
                   0 ? (
-                    history
-                      .slice(0, 10)
+                    historyFiltered.length === 0 ? (
+                      <EmptyState text="No check-ins match this filter." />
+                    ) : (
+                    historyFiltered
+                      .slice(0, historyShown)
                       .map(
                         (
                           item,
-                          index
+                          index,
+                          shownList
                         ) => {
                           const mood =
                             moodInfo(
                               item.mood
                             );
 
+                          const day = dayLabel(item);
+                          const newDay =
+                            index === 0 ||
+                            dayLabel(shownList[index - 1]) !== day;
+
                           return (
-                            <div
-                              className="history-item"
+                            <Fragment
                               key={
                                 item.id ||
                                 `${item.text}-${index}`
                               }
+                            >
+                            {newDay && (
+                              <h3 className="history-day">{day}</h3>
+                            )}
+                            <div
+                              className="history-item"
                             >
                               <div
                                 className="history-mood-icon"
@@ -6108,13 +6223,32 @@ function App() {
                                 </button>
                               )}
                             </div>
+                            </Fragment>
                           );
                         }
                       )
+                    )
                   ) : (
                     <EmptyState text="No mood history yet. Analyze your first mood above." />
                   )}
                 </div>
+
+                {historyFiltered.length > historyShown && (
+                  <div className="history-more">
+                    <small>
+                      Showing {historyShown} of {historyFiltered.length}
+                    </small>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHistoryShown((count) => count + HISTORY_PAGE)
+                      }
+                    >
+                      Show {Math.min(HISTORY_PAGE, historyFiltered.length - historyShown)} more
+                    </button>
+                  </div>
+                )}
               </section>
               )}
 
