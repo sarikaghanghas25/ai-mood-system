@@ -9,8 +9,9 @@ import json
 import logging
 import os
 import threading
+import time
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 FAKE_KEY = "fake-key-do-not-log-12345"
 
@@ -18,6 +19,7 @@ FAKE_KEY = "fake-key-do-not-log-12345"
 state = {
     "status": 200, "body": None, "requests": [], "reject_thinking": False,
     "dead": set(), "models": [], "list_status": 200, "list_calls": 0,
+    "busy": set(), "quota": set(), "delay": {},
 }
 
 
@@ -48,10 +50,15 @@ class FakeGemini(BaseHTTPRequestHandler):
         sent_body = state["requests"][-1]["body"]
         status, body = state["status"], state["body"]
 
-        # A model name Google has retired
+        # A model name Google has retired, one that is overloaded, one with no quota
         model = self.path.split("/models/")[-1].split(":")[0]
+        time.sleep(state["delay"].get(model, 0))
         if model in state["dead"]:
             status, body = 404, {"error": {"message": f"models/{model} is not found"}}
+        elif model in state["busy"]:
+            status, body = 503, {"error": {"message": "This model is currently experiencing high demand."}}
+        elif model in state["quota"]:
+            status, body = 429, {"error": {"message": "You exceeded your current quota"}}
 
         # Some real models refuse "thinking off"
         if state["reject_thinking"] and "thinkingConfig" in sent_body.get("generationConfig", {}):
@@ -69,7 +76,7 @@ class FakeGemini(BaseHTTPRequestHandler):
         pass
 
 
-server = HTTPServer(("127.0.0.1", 0), FakeGemini)
+server = ThreadingHTTPServer(("127.0.0.1", 0), FakeGemini)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 
 # Settings are read when the app is imported, so set them first
@@ -100,11 +107,16 @@ class GeminiChatTest(unittest.TestCase):
             status=200, body=reply_body("Main yahin hoon. Kya hua?"),
             requests=[], reject_thinking=False,
         )
-        gemini_chat._send_thinking_off = True
-        state.update(dead=set(), models=[], list_status=200, list_calls=0)
+        state.update(
+            dead=set(), models=[], list_status=200, list_calls=0,
+            busy=set(), quota=set(), delay={},
+        )
+        gemini_chat._no_thinking_setting = set()
         gemini_chat._model_override = None
         gemini_chat._dead_models = set()
+        gemini_chat._slow_until = {}
         gemini_chat._candidates = None
+        self.timeout = gemini_chat.TIMEOUT_SECONDS
 
     def test_returns_the_text_and_sends_what_gemini_expects(self):
         history = [
@@ -152,7 +164,7 @@ class GeminiChatTest(unittest.TestCase):
 
         self.assertIsNone(ask())
         self.assertEqual(len(state["requests"]), 1)  # no retry
-        self.assertTrue(gemini_chat._send_thinking_off)
+        self.assertEqual(gemini_chat._no_thinking_setting, set())
 
     def test_a_retired_model_is_replaced_by_one_google_still_has(self):
         from app.config import settings
@@ -162,6 +174,7 @@ class GeminiChatTest(unittest.TestCase):
         state.update(
             dead={"gemini-2.5-flash"},
             models=["gemini-2.5-flash", "gemini-embedding-001", "gemini-3-pro", "gemini-3-flash"],
+            delay={"gemini-3-pro": 0.3},
         )
 
         try:
@@ -180,6 +193,60 @@ class GeminiChatTest(unittest.TestCase):
             self.assertEqual(state["list_calls"], 1)
         finally:
             settings.GEMINI_MODEL = configured
+
+    def with_configured_model(self, name):
+        from app.config import settings
+
+        self.configured = settings.GEMINI_MODEL
+        settings.GEMINI_MODEL = name
+        self.addCleanup(setattr, settings, "GEMINI_MODEL", self.configured)
+
+    def test_an_overloaded_model_hands_over_to_the_next_one_and_rests(self):
+        self.with_configured_model("gemini-3.5-flash")
+        state.update(
+            busy={"gemini-3.5-flash"},
+            models=["gemini-3.5-flash", "gemini-3-flash-preview"],
+        )
+
+        self.assertEqual(ask(), "Main yahin hoon. Kya hua?")
+        self.assertTrue(state["requests"][-1]["path"].endswith("gemini-3-flash-preview:generateContent"))
+        self.assertIn("gemini-3.5-flash", gemini_chat._slow_until)
+
+        # The crowded one is left alone for the next questions
+        state["requests"].clear()
+        ask()
+        self.assertEqual(len(state["requests"]), 1)
+        self.assertTrue(state["requests"][0]["path"].endswith("gemini-3-flash-preview:generateContent"))
+
+    def test_a_model_that_stalls_is_given_up_on(self):
+        self.with_configured_model("slow-model")
+        gemini_chat.TIMEOUT_SECONDS = 0.4
+        self.addCleanup(setattr, gemini_chat, "TIMEOUT_SECONDS", self.timeout)
+        state.update(models=["slow-model", "gemini-3-flash"], delay={"slow-model": 1.0})
+        # (the speed test inside discovery waits up to 8s, so it still sees both)
+
+        self.assertEqual(ask(), "Main yahin hoon. Kya hua?")
+        self.assertTrue(state["requests"][-1]["path"].endswith("gemini-3-flash:generateContent"))
+
+    def test_a_model_with_no_quota_is_skipped_for_another(self):
+        self.with_configured_model("gemini-omni-flash")
+        state.update(quota={"gemini-omni-flash"}, models=["gemini-omni-flash", "gemini-3-flash"])
+
+        self.assertEqual(ask(), "Main yahin hoon. Kya hua?")
+        self.assertTrue(state["requests"][-1]["path"].endswith("gemini-3-flash:generateContent"))
+
+    def test_each_model_remembers_whether_it_takes_the_thinking_setting(self):
+        self.with_configured_model("lite-model")
+        state.update(reject_thinking=True)
+
+        self.assertEqual(ask(), "Main yahin hoon. Kya hua?")
+        self.assertEqual(gemini_chat._no_thinking_setting, {"lite-model"})
+
+    def test_when_every_model_is_busy_it_falls_back(self):
+        self.with_configured_model("gemini-3.5-flash")
+        state.update(busy={"gemini-3.5-flash", "gemini-3-flash"}, models=["gemini-3.5-flash", "gemini-3-flash"])
+
+        self.assertIsNone(ask())
 
     def test_when_every_model_is_gone_it_falls_back(self):
         from app.config import settings

@@ -13,6 +13,7 @@ Note: on the free tier Google may use the messages to improve its products.
 
 import json
 import logging
+import time
 import urllib.error
 import urllib.request
 
@@ -30,18 +31,26 @@ logger = logging.getLogger(__name__)
 
 # Replies are 2-4 sentences (the prompt asks for that)
 MAX_OUTPUT_TOKENS = 512
-TIMEOUT_SECONDS = 25
 
-# Gemini 2.5 models "think" before answering, which adds several seconds
-# to a chat reply that doesn't need it, so thinking is switched off. A
-# model that can't run without thinking rejects that once; after that the
-# setting is left out.
-_send_thinking_off = True
+# Per attempt. A crowded model can sit on a request for 30 seconds; it is
+# better to give up on it quickly and try another model.
+TIMEOUT_SECONDS = 15
 
-# Google retires model names. When the configured one answers "404 not
-# found", a working model is looked up once and used from then on.
+# Seconds a model is skipped after it was overloaded (503), timed out or ran
+# out of quota
+COOL_DOWN_SECONDS = 300
+
+# Gemini 2.5 models "think" before answering, which adds several seconds to
+# a chat reply that doesn't need it, so thinking is switched off. Some models
+# refuse that setting (400); they are remembered and asked without it.
+_no_thinking_setting = set()
+
+# Google retires model names and the newest ones are often overloaded. The
+# configured model is used until it fails; then a working, fast one is found
+# (asking Google which models exist and timing them, once) and used instead.
 _model_override = None
 _dead_models = set()
+_slow_until = {}
 _candidates = None
 
 
@@ -49,20 +58,39 @@ def current_model() -> str:
     return _model_override or settings.GEMINI_MODEL
 
 
-def _find_replacement():
-    """A model Google still has, or None. Asks Google once and remembers the list."""
+def _load_candidates():
+    """Models Google has, fastest first. Asks Google once and remembers the list."""
     global _candidates
 
     if _candidates is None:
         try:
-            _candidates = gemini_models.candidates(
+            ranked = gemini_models.candidates(
                 gemini_models.list_models(settings.GEMINI_API_KEY, settings.GEMINI_URL)
             )
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
             logger.warning("Could not ask Gemini which models exist")
-            return None
+            return []
 
-    return next((name for name in _candidates if name not in _dead_models), None)
+        timed = gemini_models.by_speed(settings.GEMINI_API_KEY, settings.GEMINI_URL, ranked)
+        # If none answered the timing round, the plain ranking is all there is
+        _candidates = [name for name, _ in timed] or ranked
+
+    return _candidates
+
+
+def _find_replacement(failed: str):
+    """The next model worth trying: not dead, not resting, not the one that just failed."""
+    now = time.time()
+
+    return next(
+        (
+            name for name in _load_candidates()
+            if name != failed
+            and name not in _dead_models
+            and _slow_until.get(name, 0) <= now
+        ),
+        None,
+    )
 
 
 def build_contents(messages):
@@ -98,16 +126,14 @@ def _error_text(error: urllib.error.HTTPError) -> str:
 
 def _post(body: dict):
     """Send the request; the parsed answer, or None if it failed."""
-    global _send_thinking_off, _model_override
+    global _model_override
 
-    thinking_retried = False
-
-    # Each pass fixes one thing (thinking setting, retired model) and asks again
+    # Each pass fixes one thing (a setting, a retired or crowded model) and asks again
     for _ in range(6):
         model = current_model()
         config = {"temperature": 0.7, "maxOutputTokens": MAX_OUTPUT_TOKENS}
 
-        if _send_thinking_off:
+        if model not in _no_thinking_setting:
             config["thinkingConfig"] = {"thinkingBudget": 0}
 
         request = urllib.request.Request(
@@ -125,38 +151,47 @@ def _post(body: dict):
                 return json.load(response)
         except urllib.error.HTTPError as error:
             detail = _error_text(error)
+            code = error.code
 
-            # Only this model's refusal of "no thinking" is retried; a bad key
-            # is also a 400 and must not switch the setting off for good
-            if (
-                error.code == 400
-                and not thinking_retried
-                and _send_thinking_off
-                and "thinking" in detail.lower()
-            ):
-                logger.info("Model %s needs thinking, retrying without the setting", model)
-                _send_thinking_off = False
-                thinking_retried = True
+            # A bad key is also a 400 and says so; any other 400 is almost
+            # always the thinking setting this model doesn't take
+            if code == 400 and "thinkingConfig" in config and "api key" not in detail.lower():
+                logger.info("Model %s doesn't take the thinking setting, asking without it", model)
+                _no_thinking_setting.add(model)
                 continue
 
-            # The model name is gone: find one that is still there
-            if error.code == 404:
+            if code == 404:
                 _dead_models.add(model)
-                replacement = _find_replacement()
+            elif code in (429, 500, 503):
+                # Overloaded or out of quota: leave it alone for a while
+                _slow_until[model] = time.time() + COOL_DOWN_SECONDS
+            else:
+                # 400/403: wrong key or request; nothing another model would fix
+                logger.error("Gemini error %s for model %s", code, model)
+                return None
 
-                if replacement:
-                    logger.warning("Gemini model %s no longer exists; using %s", model, replacement)
-                    _model_override = replacement
-                    continue
+            replacement = _find_replacement(model)
 
-            if error.code == 429:
+            if replacement:
+                logger.warning("Gemini model %s answered %s; using %s", model, code, replacement)
+                _model_override = replacement
+                continue
+
+            if code == 429:
                 logger.warning("Gemini free quota used up, falling back")
             else:
-                # 400/403: wrong key; 404 with no replacement: no model to use
-                logger.error("Gemini error %s for model %s", error.code, model)
+                logger.error("Gemini error %s for model %s and no other model to try", code, model)
             return None
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-            logger.warning("Gemini is not reachable, falling back")
+            # Crowded models drop or stall the connection
+            logger.warning("Gemini model %s did not answer in time", model)
+            _slow_until[model] = time.time() + COOL_DOWN_SECONDS
+            replacement = _find_replacement(model)
+
+            if replacement:
+                _model_override = replacement
+                continue
+
             return None
 
     return None

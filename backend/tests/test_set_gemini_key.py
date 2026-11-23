@@ -9,13 +9,14 @@ import os
 import stat
 import tempfile
 import threading
+import time
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import set_gemini_key as tool
 
-state = {"status": 200, "body": None, "seen_key": None, "dead": set(), "models": []}
+state = {"status": 200, "body": None, "seen_key": None, "dead": set(), "models": [], "delay": {}}
 
 
 class FakeGemini(BaseHTTPRequestHandler):
@@ -38,6 +39,7 @@ class FakeGemini(BaseHTTPRequestHandler):
         status, body = state["status"], state["body"]
 
         model = self.path.split("/models/")[-1].split(":")[0]
+        time.sleep(state["delay"].get(model, 0))
         if model in state["dead"]:
             status, body = 404, {}
 
@@ -52,7 +54,7 @@ class FakeGemini(BaseHTTPRequestHandler):
         pass
 
 
-server = HTTPServer(("127.0.0.1", 0), FakeGemini)
+server = ThreadingHTTPServer(("127.0.0.1", 0), FakeGemini)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 URL = f"http://127.0.0.1:{server.server_port}"
 GOOD = {"candidates": [{"content": {"parts": [{"text": "Namaste dost!"}]}}]}
@@ -60,7 +62,7 @@ GOOD = {"candidates": [{"content": {"parts": [{"text": "Namaste dost!"}]}}]}
 
 class SetGeminiKeyTest(unittest.TestCase):
     def setUp(self):
-        state.update(status=200, body=GOOD, seen_key=None, dead=set(), models=[])
+        state.update(status=200, body=GOOD, seen_key=None, dead=set(), models=[], delay={})
         self.dir = tempfile.TemporaryDirectory()
         self.env = Path(self.dir.name) / ".env"
 
@@ -140,6 +142,66 @@ class SetGeminiKeyTest(unittest.TestCase):
         self.assertFalse(self.env.exists())          # not saved
         self.assertNotIn(secret, out.getvalue())      # never printed
         self.assertIn("9999", out.getvalue())         # only the last four
+
+    def run_args(self, pasted, *extra):
+        import io
+        import contextlib
+        import sys
+
+        out = io.StringIO()
+        old_stdin, old_argv = sys.stdin, sys.argv
+        sys.stdin = io.StringIO(pasted)
+        sys.argv = ["set_gemini_key.py", "--stdin", "--env-file", str(self.env), "--url", URL,
+                    "--no-reload", *extra]
+
+        try:
+            with contextlib.redirect_stdout(out):
+                code = tool.main()
+        finally:
+            sys.stdin, sys.argv = old_stdin, old_argv
+
+        return code, out.getvalue()
+
+    def test_the_fastest_model_is_picked_not_the_newest(self):
+        state.update(
+            dead={"gemini-2.5-flash"},
+            models=["gemini-3.8-flash", "gemini-3-flash", "gemini-3.5-flash"],
+            delay={"gemini-3.8-flash": 0.5, "gemini-3.5-flash": 0.3},
+        )
+        code, output = self.run_command("AIza-good-key-0042\n")
+
+        self.assertEqual(code, 0)
+        self.assertIn("GEMINI_MODEL=gemini-3-flash", self.env.read_text())
+        self.assertIn("Timing the", output)
+
+    def test_a_slow_working_model_is_swapped_for_a_faster_one(self):
+        tool.SLOW_SECONDS = 0.2
+        self.addCleanup(setattr, tool, "SLOW_SECONDS", 6)
+        state.update(models=["gemini-2.5-flash", "gemini-quick"], delay={"gemini-2.5-flash": 0.5})
+        code, output = self.run_command("AIza-good-key-0042\n")
+
+        self.assertEqual(code, 0)
+        self.assertIn("which is slow", output)
+        self.assertIn("GEMINI_MODEL=gemini-quick", self.env.read_text())
+
+    def test_pick_model_keeps_the_saved_key_and_changes_only_the_model(self):
+        self.env.write_text("JWT_SECRET_KEY=abc\nGEMINI_API_KEY=AIza-saved-key-7777\nGEMINI_MODEL=gemini-slow\n")
+        state.update(models=["gemini-slow", "gemini-fast"], delay={"gemini-slow": 0.4})
+        code, output = self.run_args("", "--pick-model")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            self.env.read_text().splitlines(),
+            ["JWT_SECRET_KEY=abc", "GEMINI_API_KEY=AIza-saved-key-7777", "GEMINI_MODEL=gemini-fast"],
+        )
+        self.assertNotIn("AIza-saved-key-7777", output)
+
+    def test_pick_model_without_a_saved_key_says_so(self):
+        code, output = self.run_args("", "--pick-model")
+
+        self.assertEqual(code, 1)
+        self.assertIn("No GEMINI_API_KEY", output)
+        self.assertFalse(self.env.exists())
 
     def run_command(self, pasted):
         import io

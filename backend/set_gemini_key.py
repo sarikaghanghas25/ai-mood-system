@@ -12,6 +12,11 @@ Or put the key on the clipboard first and run (don't copy anything else in
 between, or that is what gets read):
 
     pbpaste | venv/bin/python set_gemini_key.py --stdin
+
+To pick the fastest model for the key already saved in .env (the newest
+models are often crowded and slow), without pasting anything:
+
+    venv/bin/python set_gemini_key.py --pick-model
 """
 
 import argparse
@@ -33,6 +38,9 @@ DEFAULT_ENV = BASE_DIR / ".env"
 DEFAULT_URL = "https://generativelanguage.googleapis.com"
 DEFAULT_MODEL = "gemini-2.5-flash"
 
+# A model slower than this for one tiny question is worth replacing
+SLOW_SECONDS = 6
+
 KEY_LINE = re.compile(r"^\s*GEMINI_API_KEY\s*=")
 
 # Google keys come in two shapes: the older "AIza" + 35 characters and the
@@ -42,6 +50,18 @@ KEY_SHAPE = re.compile(r"AIza[0-9A-Za-z_\-]{35}|AQ\.[0-9A-Za-z_\-]{30,}")
 
 def mask(key: str) -> str:
     return f"...{key[-4:]}" if len(key) >= 8 else "(too short)"
+
+
+def read_key(env_path: Path) -> str:
+    """The key already saved in the file, or an empty string."""
+    if not env_path.exists():
+        return ""
+
+    for line in env_path.read_text().splitlines():
+        if KEY_LINE.match(line):
+            return line.split("=", 1)[1].strip().strip("\"'")
+
+    return ""
 
 
 def write_var(env_path: Path, name: str, value: str) -> None:
@@ -121,22 +141,29 @@ def check_key(key: str, model: str = DEFAULT_MODEL, url: str = DEFAULT_URL):
 
 
 def find_working_model(key: str, url: str, say=print):
-    """Ask Google which models exist and try the best ones: (model, status, text, seconds) or None."""
+    """
+    Ask Google which models exist, time the best ones side by side and take
+    the fastest: (model, status, text, seconds), or None.
+    """
     try:
-        names = gemini_models.candidates(gemini_models.list_models(key, url))
+        ranked = gemini_models.candidates(gemini_models.list_models(key, url))
     except (urllib.error.URLError, TimeoutError, ValueError):
         say("  Could not get the list of models from Google.")
         return None
 
-    for name in names[:6]:
-        status, text, seconds = probe(key, name, url)
-        worked, _ = explain(status, text, name)
-        say(f"  trying {name}: {'works' if worked else f'no ({status})'}")
+    say(f"  Timing the {min(len(ranked), 10)} best models at the same time...")
+    timed = gemini_models.by_speed(key, url, ranked)
 
-        if worked:
-            return name, status, text, seconds
+    for name, seconds in timed[:6]:
+        say(f"    {name}: {seconds:.1f}s")
 
-    return None
+    if not timed:
+        say("    none of them answered (crowded, retired or out of free quota).")
+        return None
+
+    name = timed[0][0]
+    status, text, seconds = probe(key, name, url)
+    return name, status, text, seconds
 
 
 def main() -> int:
@@ -146,9 +173,18 @@ def main() -> int:
     parser.add_argument("--url", default=DEFAULT_URL)
     parser.add_argument("--model", default=os.environ.get("GEMINI_MODEL", DEFAULT_MODEL))
     parser.add_argument("--no-reload", action="store_true", help="don't ask the backend to restart")
+    parser.add_argument("--pick-model", action="store_true",
+                        help="keep the saved key and only choose the fastest working model")
     args = parser.parse_args()
 
-    key = (sys.stdin.read() if args.stdin else getpass.getpass("Paste your Gemini API key (it stays hidden): ")).strip()
+    if args.pick_model:
+        key = read_key(args.env_file)
+
+        if not key:
+            print(f"No GEMINI_API_KEY in {args.env_file} yet. Run this without --pick-model first.")
+            return 1
+    else:
+        key = (sys.stdin.read() if args.stdin else getpass.getpass("Paste your Gemini API key (it stays hidden): ")).strip()
 
     if not key:
         print("No key given, nothing changed.")
@@ -174,14 +210,22 @@ def main() -> int:
 
     print(f"Checking the key ({mask(key)}) with Gemini...")
     model = args.model
-    status, text, seconds = probe(key, model, args.url)
+    status, text, seconds = (404, "", 0.0) if args.pick_model else probe(key, model, args.url)
 
     if status == 404:
         # The key reached Google, but the model name has been retired
-        print(f"  The model '{model}' doesn't exist any more. Looking for one that does...")
+        if not args.pick_model:
+            print(f"  The model '{model}' doesn't exist any more. Looking for one that does...")
         found = find_working_model(key, args.url)
 
         if found:
+            model, status, text, seconds = found
+    elif status == 200 and seconds > SLOW_SECONDS:
+        # It works, but crowded models answer slowly: see if another is faster
+        print(f"  '{model}' answered in {seconds:.1f}s, which is slow. Looking for a faster one...")
+        found = find_working_model(key, args.url)
+
+        if found and found[3] < seconds:
             model, status, text, seconds = found
 
     worked, message = explain(status, text, model)
@@ -191,12 +235,13 @@ def main() -> int:
         print("The key was NOT saved.")
         return 1
 
-    write_key(args.env_file, key)
-    print(f"Saved GEMINI_API_KEY={mask(key)} in {args.env_file}")
+    if not args.pick_model:
+        write_key(args.env_file, key)
+        print(f"Saved GEMINI_API_KEY={mask(key)} in {args.env_file}")
 
-    if model != DEFAULT_MODEL:
+    if model != DEFAULT_MODEL or args.pick_model:
         write_var(args.env_file, "GEMINI_MODEL", model)
-        print(f"Saved GEMINI_MODEL={model} (the model that works today)")
+        print(f"Saved GEMINI_MODEL={model} (the fastest model that works today)")
 
     # uvicorn --reload restarts when a .py file changes; settings are read at start
     if not args.no_reload and args.env_file == DEFAULT_ENV:

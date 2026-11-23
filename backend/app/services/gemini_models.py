@@ -73,3 +73,68 @@ def rank(name: str):
 def candidates(names: list[str]) -> list[str]:
     """The usable models, best first, without repeats."""
     return sorted({name for name in names if usable(name)}, key=rank)
+
+
+# ---------- speed: the newest model is often the most crowded ----------
+
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+PROBE_PROMPT = "Say hello in one short Hinglish sentence."
+
+
+def probe(key: str, url: str, name: str, timeout: float = 8):
+    """
+    One tiny request to a model: (worked, seconds). A model that refuses the
+    "thinking off" setting (400) is tried again without it.
+    """
+    started = time.time()
+
+    for with_thinking in (True, False):
+        config = {"maxOutputTokens": 20}
+        if with_thinking:
+            config["thinkingConfig"] = {"thinkingBudget": 0}
+
+        request = urllib.request.Request(
+            f"{url}/v1beta/models/{name}:generateContent",
+            data=json.dumps({
+                "contents": [{"role": "user", "parts": [{"text": PROBE_PROMPT}]}],
+                "generationConfig": config,
+            }).encode(),
+            headers={"Content-Type": "application/json", "x-goog-api-key": key},
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code == 400 and with_thinking:
+                continue
+            return False, time.time() - started
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            return False, time.time() - started
+
+        parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+        has_text = any(part.get("text") for part in parts)
+        return has_text, time.time() - started
+
+    return False, time.time() - started
+
+
+def by_speed(key: str, url: str, names: list[str], limit: int = 10, timeout: float = 8):
+    """
+    Try the first `limit` models at the same time; the ones that answered,
+    fastest first, as [(name, seconds), ...]. Crowded, retired or
+    out-of-quota models simply don't appear.
+    """
+    names = list(names)[:limit]
+    if not names:
+        return []
+
+    with ThreadPoolExecutor(max_workers=len(names)) as pool:
+        results = list(pool.map(lambda name: (name, *probe(key, url, name, timeout)), names))
+
+    return sorted(
+        ((name, seconds) for name, worked, seconds in results if worked),
+        key=lambda pair: pair[1],
+    )
