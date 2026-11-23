@@ -1,6 +1,7 @@
 import re
 
 from app.services.claude_chat import generate_claude_reply
+from app.services.gemini_chat import generate_gemini_reply
 from app.services.local_chat import generate_local_reply
 from app.services.mood_ai import detect_mood_with_ai
 
@@ -1273,8 +1274,8 @@ def generate_chatbot_reply(
     # Response
     # --------------------------------------------------------
 
-    # Claude (if a key is set), then the free local model,
-    # then the rule-based reply
+    # Claude (if a key is set), then Gemini (if a key is set), then the
+    # free local model, then the rule-based reply
 
     reply = generate_claude_reply(
         message=text,
@@ -1284,6 +1285,16 @@ def generate_chatbot_reply(
     )
 
     reply_source = "claude"
+
+    if reply is None:
+        reply = generate_gemini_reply(
+            message=text,
+            history=conversation_history,
+            mood_result=mood_result,
+            intent=intent,
+        )
+
+        reply_source = "gemini"
 
     if reply is None:
         reply = generate_local_reply(

@@ -61,6 +61,12 @@ app = FastAPI(
 )
 
 
+@app.get("/health", include_in_schema=False)
+def health():
+    """Tiny page with no database or model work: for uptime pings and host health checks."""
+    return {"status": "ok"}
+
+
 # ============================================================
 # CORS
 # ============================================================

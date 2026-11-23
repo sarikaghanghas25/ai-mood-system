@@ -776,19 +776,25 @@ function BreathingCard({ onOpenSession }) {
 }
 
 // Reveals a new bot reply letter by letter
+// However long the reply, revealing it never takes much longer than this
+const MAX_TYPING_MS = 2000;
+
 function Typewriter({ text, speed = 16 }) {
   const [count, setCount] = useState(0);
+
+  // Long replies are revealed a few letters at a time; short ones one by one
+  const step = Math.max(1, Math.ceil(text.length / (MAX_TYPING_MS / speed)));
 
   useEffect(() => {
     if (count >= text.length) return undefined;
 
     const timer = setTimeout(
-      () => setCount((value) => value + 1),
+      () => setCount((value) => Math.min(value + step, text.length)),
       speed
     );
 
     return () => clearTimeout(timer);
-  }, [count, text, speed]);
+  }, [count, text, speed, step]);
 
   const done = count >= text.length;
 

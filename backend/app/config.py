@@ -27,11 +27,17 @@ class Settings(BaseSettings):
     # AI Companion chatbot, tried in this order:
     # 1. Claude (paid) - only when a key is set
     ANTHROPIC_API_KEY: str = ""
-    # 2. Free local model through Ollama - empty OLLAMA_MODEL turns it off
+    # 2. Gemini (free tier at aistudio.google.com) - only when a key is set.
+    #    Free-tier messages may be used by Google to improve its products.
+    GEMINI_API_KEY: str = ""
+    # Model names change over time; pick a current free one in AI Studio
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_URL: str = "https://generativelanguage.googleapis.com"
+    # 3. Free local model through Ollama - empty OLLAMA_MODEL turns it off
     OLLAMA_URL: str = "http://127.0.0.1:11434"
     # gemma2:9b understood Hinglish far better than qwen2.5:7b in testing
     OLLAMA_MODEL: str = "gemma2:9b"
-    # 3. Otherwise the built-in rule-based replies
+    # 4. Otherwise the built-in rule-based replies
 
 
 settings = Settings()
