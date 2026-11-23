@@ -380,8 +380,27 @@ def predict_with_ml(text: str):
 # BASIC HELPERS
 # ============================================================
 
+_keyword_patterns = {}
+
+
 def contains_any(text: str, words):
-    return any(word in text for word in words)
+    """
+    True if any keyword appears starting at a word boundary. Matching
+    inside a word is not enough: "resent" must not fire on
+    "presentation", nor "kill" on "skill". Endings stay free, so
+    "thak" still matches "thakaan".
+    """
+    key = tuple(words)
+    pattern = _keyword_patterns.get(key)
+
+    if pattern is None:
+        ordered = sorted(words, key=len, reverse=True)
+        pattern = re.compile(
+            r"(?<!\w)(?:" + "|".join(re.escape(word) for word in ordered) + ")"
+        )
+        _keyword_patterns[key] = pattern
+
+    return pattern.search(text) is not None
 
 
 def word_present(text: str, word: str):
