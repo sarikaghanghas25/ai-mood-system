@@ -109,8 +109,22 @@ def main() -> int:
         return 1
 
     if re.search(r"\s", key):
-        print("That doesn't look like one key (it has spaces or line breaks). Nothing changed.")
-        return 1
+        # Often the whole row or page was copied, not just the key: take the
+        # key out of it, but only if it is clearly one key
+        found = set(re.findall(r"AIza[0-9A-Za-z_\-]{35}", key))
+
+        if len(found) == 1:
+            key = found.pop()
+            print("You copied more than the key; using only the key that was inside it.")
+        else:
+            words, lines = len(key.split()), len(key.strip().splitlines())
+            print(
+                f"That doesn't look like one key: the clipboard has {words} words "
+                f"on {lines} line(s) and {'no' if not found else 'several'} Google key inside. "
+                "Copy only the key with the copy icon next to it in AI Studio "
+                "(it starts with AIza). Nothing changed."
+            )
+            return 1
 
     print(f"Checking the key ({mask(key)}) with Gemini...")
     worked, message, seconds = check_key(key, args.model, args.url)

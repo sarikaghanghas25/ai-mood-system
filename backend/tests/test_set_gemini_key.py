@@ -122,6 +122,44 @@ class SetGeminiKeyTest(unittest.TestCase):
         self.assertNotIn(secret, out.getvalue())      # never printed
         self.assertIn("9999", out.getvalue())         # only the last four
 
+    def run_command(self, pasted):
+        import io
+        import contextlib
+        import sys
+
+        out = io.StringIO()
+        old_stdin, old_argv = sys.stdin, sys.argv
+        sys.stdin = io.StringIO(pasted)
+        sys.argv = ["set_gemini_key.py", "--stdin", "--env-file", str(self.env), "--url", URL, "--no-reload"]
+
+        try:
+            with contextlib.redirect_stdout(out):
+                code = tool.main()
+        finally:
+            sys.stdin, sys.argv = old_stdin, old_argv
+
+        return code, out.getvalue()
+
+    def test_key_is_taken_out_of_a_longer_paste(self):
+        key = "AIza" + "x" * 35
+        code, output = self.run_command(f"Name  Key  Created\nmy key  {key}  Nov 23\n")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(self.env.read_text(), f"GEMINI_API_KEY={key}\n")
+        self.assertIn("using only the key", output)
+        self.assertNotIn(key, output)
+
+    def test_text_with_no_key_or_two_keys_is_refused_and_not_echoed(self):
+        two = "AIza" + "a" * 35 + " and " + "AIza" + "b" * 35
+        for pasted in ("some command I copied by mistake\nsecond line", two):
+            code, output = self.run_command(pasted)
+
+            self.assertEqual(code, 1)
+            self.assertFalse(self.env.exists())
+            self.assertIn("Copy only the key", output)
+            self.assertNotIn("mistake", output)       # nothing of the paste is echoed
+            self.assertNotIn("a" * 35, output)
+
     def test_command_saves_a_working_key(self):
         import io
         import contextlib
