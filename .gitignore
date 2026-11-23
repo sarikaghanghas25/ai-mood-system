@@ -24,3 +24,5 @@ build/
 *.log
 *.tmp
 *.temp
+.vercel
+.env*

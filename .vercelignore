@@ -1,0 +1,2 @@
+# Only the frontend goes to Vercel; the backend runs on Render
+backend
