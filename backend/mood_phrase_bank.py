@@ -106,6 +106,8 @@ MISHAPS = [
     "my bike broke down", "I missed my bus", "my exam didn't go well",
     "I lost my earphones", "my order got cancelled",
     "mera phone toot gaya", "mera purse kho gaya", "meri bike kharab ho gayi",
+    "mera phone band ho gaya", "mera phone hang ho gaya aur restart nahi ho raha",
+    "mera phone chori ho gaya", "meri car raste mein kharab ho gayi",
     "meri bus chhoot gayi", "mera laptop band ho gaya", "mera order cancel ho gaya",
 ]
 
@@ -145,6 +147,32 @@ CAUGHT_BY_FAMILY = [
     "lekin papa ko kisi ne bata diya", "aur ghar pe sab gusse mein baithe the",
 ]
 
+# A work moment going well; reused by the builder for
+# "the meeting was going well, but the slides wouldn't open and my job is at risk"
+WORK_GOING_WELL = [
+    "my client meeting was going really well", "the presentation was going great",
+    "the interview was going well", "my demo was going smoothly",
+    "my boss was happy with my pitch", "the review meeting was going fine",
+    "meri meeting bahut achhi chal rahi thi", "presentation ekdum sahi chal rahi thi",
+    "interview achha ja raha tha", "client ko meri baat pasand aa rahi thi",
+    "demo bilkul smooth chal raha tha", "boss meri tareef kar rahe the",
+]
+
+# The slip, with the job or deal at risk. Combined with WORK_GOING_WELL and
+# labelled anxious + stressed: the good start doesn't make it happy.
+WORK_SLIP = [
+    "but the slides would not open and now my job is at risk",
+    "but my laptop crashed in front of everyone and I might get fired",
+    "but I forgot the key numbers and the client looked unhappy",
+    "but the projector failed and my manager is furious",
+    "but I made a big mistake and now the deal might fall through",
+    "lekin slides khuli hi nahi aur ab meri naukri khatre mein hai",
+    "par laptop sabke saamne band ho gaya aur ab pata nahi kya hoga",
+    "lekin main ek zaroori number bhool gayi aur client naraz ho gaya",
+    "par projector kharab ho gaya aur boss bahut gusse mein hain",
+    "lekin badi galti ho gayi ab deal haath se ja sakti hai",
+]
+
 # (setup, the setup's own moods, what happened next, moods of the whole sentence)
 CONTRAST_PATTERNS = [
     (KINDNESS, ["happy"], BETRAYED_AFTER_HELP, ["angry", "sad"]),
@@ -153,6 +181,7 @@ CONTRAST_PATTERNS = [
     (MISHAPS, ["sad"], RESOLVED, ["happy"]),
     (RESCUE, ["neutral"], HURT_WHILE_HELPING, ["sad"]),
     (SECRET_FUN, ["happy"], CAUGHT_BY_FAMILY, ["anxious"]),
+    (WORK_GOING_WELL, ["happy"], WORK_SLIP, ["anxious", "stressed"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words
@@ -253,6 +282,15 @@ DOMAIN_EVENTS = [
         "my father doesn't talk to me anymore", "I couldn't go home for the festival",
         "ghar walon se door rehna bahut mushkil hai", "papa mujhse baat nahi karte",
         "is baar diwali pe ghar nahi ja paya",
+        # Someone close leaving the country for good (my own trip abroad is happy)
+        "my brother is leaving for the US and won't be back for years",
+        "my sister is shifting abroad after her marriage and I will miss her",
+        "my closest friend is moving to canada permanently",
+        "my cousin is settling in australia and we may never meet again",
+        "mera bhai hamesha ke liye videsh ja raha hai",
+        "meri behan shaadi ke baad videsh shift ho rahi hai",
+        "mera sabse achha dost canada settle ho raha hai aur ab kam milenge",
+        "meri best friend kal foreign ja rahi hai wapis nahi aayegi",
     ]),
     (["angry"], [
         "my parents compare me with my cousins all the time",
@@ -418,6 +456,14 @@ DOMAIN_EVENTS = [
         "we finally reached goa", "I am going on a trip to manali tomorrow",
         "the view from the mountain was beautiful", "I got a window seat on my first flight",
         "kal manali ja rahe hain", "pehli baar flight mein baitha",
+        # Going abroad myself (study, visa, trip, job): excitement. A friend
+        # leaving for good is a different sentence and stays sad.
+        "I am going abroad for my higher studies", "my visa got approved and I fly to canada next month",
+        "I am going to a foreign country for the first time", "we are going on a family trip to dubai",
+        "I got a job offer in germany and I am going there", "I am going to europe this summer",
+        "main videsh ja rahi hoon padhai karne", "mera visa lag gaya aur main foreign ja raha hoon",
+        "pehli baar foreign ja rahe hain ghoomne", "kal main singapore ja raha hoon trip pe",
+        "hum sab dubai ghoomne ja rahe hain",
     ]),
     (["anxious"], [
         "my flight is delayed and I might miss my connection",

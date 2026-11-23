@@ -105,6 +105,17 @@ SHORT_FORMS = {
     "lia": "liya",
     "kia": "kiya",
     "pta": "pata",
+    "kahtre": "khatre",
+    "khtre": "khatre",
+    "chli": "chali",
+    "shi": "sahi",
+    "bnd": "band",
+    "pda": "pada",
+    "pdi": "padi",
+    "pde": "pade",
+    "pdta": "padta",
+    "pdega": "padega",
+    "pdegi": "padegi",
     "shrab": "sharab",
     "sharb": "sharab",
     "juthe": "jhoothe",
@@ -279,6 +290,9 @@ def normalize_text(text: str) -> str:
         "cha gayi": "chal gayi",
         # "sab sore the" = "sab sare the" (everyone was there)
         "sab sore": "sab sare",
+        # "shi jari thi" = "sahi chal rahi thi"
+        "shi jari": "sahi chal rahi",
+        "shi jari thi": "sahi chal rahi thi",
     }
 
     # Whole words only ("im" must not change "time" or "him"),
