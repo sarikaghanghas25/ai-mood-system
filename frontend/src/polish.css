@@ -3426,3 +3426,228 @@ body.dark-mode .password-toggle:hover {
 body.dark-mode .password-toggle[aria-pressed="true"] {
   color: #a9b7ff;
 }
+
+/* ---------- Notification bell ---------- */
+
+.bell-wrap {
+  position: relative;
+}
+
+.bell-count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border: 2px solid #f8faff;
+  border-radius: 999px;
+  background: #ff5e73;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  animation: bell-pop 0.4s var(--ease-spring) both;
+}
+
+@keyframes bell-pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+.notification.is-ringing {
+  animation: bell-ring 1.2s ease-in-out;
+  transform-origin: 50% 12%;
+}
+
+@keyframes bell-ring {
+  0%, 100% { rotate: 0deg; }
+  15% { rotate: 16deg; }
+  30% { rotate: -14deg; }
+  45% { rotate: 10deg; }
+  60% { rotate: -8deg; }
+  75% { rotate: 4deg; }
+}
+
+.bell-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 60;
+  width: min(370px, calc(100vw - 32px));
+  max-height: min(520px, 72vh);
+  overflow-y: auto;
+  border: 1px solid #e2e8f5;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 24px 60px rgba(40, 56, 120, 0.22);
+  transform-origin: 90% 0;
+  animation: bell-panel-in 0.28s var(--ease-out) both;
+}
+
+@keyframes bell-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+.bell-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf0f8;
+  background: white;
+}
+
+.bell-panel-head strong {
+  font-size: 15px;
+}
+
+.bell-panel-head button {
+  border: 0;
+  background: transparent;
+  color: #4f6fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bell-panel-head button:disabled {
+  color: #a1a9ba;
+  cursor: default;
+}
+
+.bell-list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.bell-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 10px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.25s var(--ease-out);
+}
+
+.bell-item:hover {
+  background: #f4f7ff;
+  transform: translateX(2px);
+}
+
+.bell-item.is-unread {
+  background: #f1f4ff;
+}
+
+.bell-item-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #eef2ff;
+  font-size: 20px;
+}
+
+.bell-item-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.bell-item-text strong,
+.bell-item-text small {
+  display: block;
+}
+
+.bell-item-text strong {
+  font-size: 13px;
+}
+
+.bell-item-text small {
+  margin-top: 2px;
+  color: #68748e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.bell-item:not(.is-unread) .bell-item-text strong {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.bell-item-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4f6fff;
+}
+
+.bell-empty,
+.bell-caught-up {
+  margin: 0;
+  padding: 18px 16px 20px;
+  color: #68748e;
+  font-size: 13px;
+  text-align: center;
+}
+
+.bell-caught-up {
+  padding-top: 4px;
+}
+
+@media (max-width: 560px) {
+  .bell-wrap {
+    position: static;
+  }
+
+  .bell-panel {
+    position: fixed;
+    top: 78px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification.is-ringing,
+  .bell-count,
+  .bell-panel {
+    animation: none;
+  }
+}
+
+/* Phones: keep the theme buttons and the bell (the profile menu stays hidden) */
+@media (max-width: 760px) {
+  .topbar-actions {
+    display: flex;
+    gap: 0;
+  }
+
+  .topbar-actions .user-menu {
+    display: none;
+  }
+
+  .topbar-actions .icon-button {
+    width: 34px;
+    height: 34px;
+  }
+}

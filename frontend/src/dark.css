@@ -887,6 +887,45 @@ body.dark-mode .garden-legend .is-grown {
   color: #a7debd;
 }
 
+body.dark-mode .password-toggle:hover {
+  background: #161f3b;
+}
+
+body.dark-mode .bell-count {
+  border: 2px solid #2b385a;
+}
+
+body.dark-mode .bell-panel {
+  border: 1px solid #2b3a5a;
+  background: #1c1f2c;
+}
+
+body.dark-mode .bell-panel-head {
+  border-bottom: 1px solid #2b385a;
+  background: #1c1f2c;
+}
+
+body.dark-mode .bell-item:hover {
+  background: #151f38;
+}
+
+body.dark-mode .bell-item.is-unread {
+  background: #161d39;
+}
+
+body.dark-mode .bell-item-icon {
+  background: #161f3b;
+}
+
+body.dark-mode .bell-item-text small {
+  color: #a3abbc;
+}
+
+body.dark-mode .bell-empty,
+body.dark-mode .bell-caught-up {
+  color: #a3abbc;
+}
+
 /* ---------- Hand-written ---------- */
 
 body.dark-mode {

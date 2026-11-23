@@ -1064,6 +1064,296 @@ function EyeIcon({ off }) {
   );
 }
 
+/*
+ * Notifications are worked out from the user's own history, so nothing is
+ * stored on the server. Each has a stable id; the ids the user has read
+ * are remembered in this browser.
+ */
+const NOTIFICATION_LIMIT = 10;
+const ANALYZER_ACTION = { type: "navigate", section: "mood-analysis", id: "analyzer" };
+const CALENDAR_ACTION = { type: "navigate", section: "calendar", id: "mood-calendar" };
+const BADGES_ACTION = { type: "navigate", section: "calendar", id: "achievements" };
+// Moods that get a "take a breath" nudge after the latest check-in
+const CALM_NUDGE_MOODS = new Set(["anxious", "stressed", "angry", "sad", "tired"]);
+
+function buildNotifications(history) {
+  const entries = history || [];
+
+  if (entries.length === 0) {
+    return [
+      {
+        id: "welcome",
+        icon: "👋",
+        title: "Welcome to AI Mood System",
+        text: "Write how you feel and get your first mood insight.",
+        action: ANALYZER_ACTION,
+      },
+    ];
+  }
+
+  const list = [];
+  const now = new Date();
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const todayKey = dayKey(today);
+  const byDay = moodsByDay(entries);
+  const streak = currentStreak(byDay);
+
+  // 1. Today's check-in / streak
+  if (!byDay[todayKey]) {
+    list.push(
+      streak > 0
+        ? {
+            id: `streak-risk-${todayKey}`,
+            icon: "🔥",
+            title: `Keep your ${streak}-day streak alive`,
+            text: "You haven't checked in today. It only takes a minute.",
+            action: ANALYZER_ACTION,
+          }
+        : {
+            id: `today-${todayKey}`,
+            icon: "📭",
+            title: "Today's check-in is waiting",
+            text: "How are you feeling right now?",
+            action: ANALYZER_ACTION,
+          }
+    );
+  } else if (streak >= 2) {
+    list.push({
+      id: `streak-${streak}`,
+      icon: "🔥",
+      title: `${streak}-day streak!`,
+      text: "You're building a healthy habit. Keep going.",
+      action: CALENDAR_ACTION,
+    });
+  }
+
+  // 2. A calming nudge after a heavy latest check-in (last 36 hours)
+  const latest = entries.reduce((best, item) => {
+    const date = parseServerDate(item.created_at || item.timestamp || item.date);
+    if (!date) return best;
+    return !best || date > best.date ? { item, date } : best;
+  }, null);
+
+  if (latest && now - latest.date < 36 * 60 * 60 * 1000) {
+    const mood = String(latest.item.mood || "").toLowerCase();
+    const prompt = BREATH_PROMPTS[mood];
+
+    if (prompt && CALM_NUDGE_MOODS.has(mood)) {
+      list.push({
+        id: `calm-${latest.item.id ?? latest.date.getTime()}`,
+        icon: "💙",
+        title: prompt.title,
+        text: "A guided breathing session with calm nature sounds.",
+        action: { type: "breathe", pattern: prompt.pattern },
+      });
+    }
+  }
+
+  // 3. Badges earned, the harder ones first
+  badgeList(entries)
+    .filter((badge) => badge.unlocked)
+    .reverse()
+    .slice(0, 4)
+    .forEach((badge) => {
+      list.push({
+        id: `badge-${badge.key}`,
+        icon: badge.icon,
+        title: `Badge unlocked: ${badge.title}`,
+        text: badge.text,
+        action: BADGES_ACTION,
+      });
+    });
+
+  // 4. Weekly story, once there are enough check-ins this week
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 6);
+
+  const thisWeek = entries.filter((item) => {
+    const date = parseServerDate(item.created_at || item.timestamp || item.date);
+    return date && date >= weekAgo;
+  }).length;
+
+  if (thisWeek >= 3) {
+    list.push({
+      id: `story-${Math.floor(today.getTime() / (7 * 24 * 60 * 60 * 1000))}`,
+      icon: "✨",
+      title: "Your weekly story is ready",
+      text: `${thisWeek} check-ins this week. See how your week felt.`,
+      action: CALENDAR_ACTION,
+    });
+  }
+
+  // 5. Garden growth: one plant per day with a check-in in the last 14 days
+  let plants = 0;
+  for (let offset = 0; offset < 14; offset += 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    if (byDay[dayKey(day)]) plants += 1;
+  }
+
+  if (plants >= 1) {
+    list.push({
+      id: `garden-${plants}`,
+      icon: "🌱",
+      title: `Your garden has ${plants} ${plants === 1 ? "plant" : "plants"}`,
+      text: "Every check-in plants something new.",
+      action: CALENDAR_ACTION,
+    });
+  }
+
+  return list.slice(0, NOTIFICATION_LIMIT);
+}
+
+function NotificationBell({ history, ready, onAction }) {
+  const items = useMemo(
+    () => (ready ? buildNotifications(history) : []),
+    [history, ready]
+  );
+
+  const [open, setOpen] = useState(false);
+  const [ringing, setRinging] = useState(false);
+  const wrapRef = useRef(null);
+  const lastUnread = useRef(null);
+
+  const [readIds, setReadIds] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("notifications_read") || "[]");
+      return Array.isArray(saved) ? saved : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const unread = items.filter((item) => !readIds.includes(item.id));
+
+  const saveRead = (ids) => {
+    // Keep the list from growing forever
+    const trimmed = [...new Set(ids)].slice(-200);
+    setReadIds(trimmed);
+
+    try {
+      localStorage.setItem("notifications_read", JSON.stringify(trimmed));
+    } catch {
+      // Private mode etc.: read state lasts for this visit only
+    }
+  };
+
+  const markAllRead = () => saveRead([...readIds, ...items.map((item) => item.id)]);
+
+  const openItem = (item) => {
+    saveRead([...readIds, item.id]);
+    setOpen(false);
+    onAction(item.action);
+  };
+
+  // The bell rings when something new arrives
+  useEffect(() => {
+    if (!ready) return undefined;
+
+    const count = unread.length;
+    const previous = lastUnread.current;
+    lastUnread.current = count;
+
+    if (previous === null || count <= previous) return undefined;
+
+    setRinging(true);
+    const timer = setTimeout(() => setRinging(false), 1400);
+    return () => clearTimeout(timer);
+  }, [unread.length, ready]);
+
+  // Click outside or Escape closes the panel
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const onPointer = (event) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target)) setOpen(false);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="bell-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`icon-button notification ${ringing ? "is-ringing" : ""}`}
+        onClick={() => setOpen((value) => !value)}
+        aria-label={
+          unread.length > 0
+            ? `Notifications, ${unread.length} unread`
+            : "Notifications"
+        }
+        aria-expanded={open}
+      >
+        🔔
+        {unread.length > 0 && (
+          <b className="bell-count">{unread.length > 9 ? "9+" : unread.length}</b>
+        )}
+      </button>
+
+      {open && (
+        <div className="bell-panel" role="dialog" aria-label="Notifications">
+          <div className="bell-panel-head">
+            <strong>Notifications</strong>
+
+            <button
+              type="button"
+              onClick={markAllRead}
+              disabled={unread.length === 0}
+            >
+              Mark all read
+            </button>
+          </div>
+
+          {items.length === 0 ? (
+            <p className="bell-empty">Nothing yet. Check in to get started 🌱</p>
+          ) : (
+            <ul className="bell-list">
+              {items.map((item) => {
+                const isUnread = !readIds.includes(item.id);
+
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className={`bell-item ${isUnread ? "is-unread" : ""}`}
+                      onClick={() => openItem(item)}
+                    >
+                      <span className="bell-item-icon">{item.icon}</span>
+
+                      <span className="bell-item-text">
+                        <strong>{item.title}</strong>
+                        <small>{item.text}</small>
+                      </span>
+
+                      {isUnread && <i className="bell-item-dot" aria-hidden="true" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {items.length > 0 && unread.length === 0 && (
+            <p className="bell-caught-up">You're all caught up 🎉</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SELF_CARE = [
   { id: "water", icon: "💧", text: "Drink a glass of water" },
   { id: "breathe", icon: "🌬️", text: "1 minute of slow breathing" },
@@ -2534,6 +2824,10 @@ function App() {
 
   const [history, setHistory] = useState([]);
 
+  // True once the first history request has finished (so the bell
+  // doesn't flash a "welcome" while it is still loading)
+  const [historyReady, setHistoryReady] = useState(false);
+
   const [trend, setTrend] = useState([]);
 
   const [insights, setInsights] = useState(null);
@@ -2698,6 +2992,8 @@ function App() {
           );
         }
       }
+
+      setHistoryReady(true);
 
       if (
         trendResponse.status ===
@@ -2885,6 +3181,7 @@ function App() {
     setDashboard(null);
 
     setHistory([]);
+    setHistoryReady(false);
 
     setTrend([]);
 
@@ -4174,13 +4471,17 @@ function App() {
               🌙
             </button>
 
-            <button
-              type="button"
-              className="icon-button notification"
-            >
-              🔔
-              <i />
-            </button>
+            <NotificationBell
+              history={history}
+              ready={historyReady}
+              onAction={(action) => {
+                if (action.type === "breathe") {
+                  setBreathingOpen(action.pattern);
+                } else {
+                  navigateTo(action.section, action.id);
+                }
+              }}
+            />
 
             <div className="user-menu">
               <div className="avatar">
