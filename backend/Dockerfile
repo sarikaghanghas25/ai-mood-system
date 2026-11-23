@@ -1,27 +1,22 @@
-# Backend image, written for Hugging Face Spaces (Docker, port 7860) but
-# it runs anywhere: docker build -t mood-api . && docker run -p 7860:7860 mood-api
+# LIGHT backend image for free 512MB hosts (Render free): no torch, no
+# sentence embeddings, so it needs ~350MB of RAM. It loads the light model
+# (mood_multilabel_model_light.joblib); the best model needs Dockerfile.full.
 FROM python:3.11-slim
 
-# Spaces runs the container as user 1000
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
-    HF_HOME=/home/user/.cache/huggingface \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    MOOD_MODEL=light
 
 WORKDIR /home/user/app
 
-COPY --chown=user requirements.txt .
-# CPU-only torch is ~200MB instead of ~2GB with CUDA
-RUN pip install --no-cache-dir \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    -r requirements.txt
-
-# Download the embedding model now, so the first request isn't a 470MB download
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+COPY --chown=user requirements-light.txt .
+RUN pip install --no-cache-dir -r requirements-light.txt
 
 COPY --chown=user . .
 
+# Render sets $PORT (10000); 7860 when running it by hand
 EXPOSE 7860
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}"]

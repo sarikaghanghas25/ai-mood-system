@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 
@@ -51,8 +52,15 @@ def predict_mood(text: str):
 
 MOODS = ["happy", "sad", "angry", "tired", "anxious", "stressed", "neutral"]
 
-MULTILABEL_MODEL_PATH = (
-    Path(__file__).resolve().parent / "mood_multilabel_model.joblib"
+# MOOD_MODEL=light loads the model trained without sentence embeddings:
+# ~150MB of RAM instead of ~600MB (torch), so it fits free 512MB hosts,
+# at a cost of some accuracy on sentences it has never seen.
+MODEL_VARIANT = os.environ.get("MOOD_MODEL", "full").strip().lower()
+
+MULTILABEL_MODEL_PATH = Path(__file__).resolve().parent / (
+    "mood_multilabel_model_light.joblib"
+    if MODEL_VARIANT == "light"
+    else "mood_multilabel_model.joblib"
 )
 
 MAX_MOODS = 3

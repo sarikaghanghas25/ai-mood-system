@@ -123,6 +123,11 @@ def main():
         texts, labels, test_size=0.2, random_state=42,
     )
 
+    # The light model is a separate file, so training it never overwrites the full one
+    global MODEL_PATH
+    if args.no_embeddings:
+        MODEL_PATH = MODEL_PATH.with_name("mood_multilabel_model_light.joblib")
+
     pipeline = build_pipeline(not args.no_embeddings, args.embedding_weight, args.C)
     pipeline.fit(X_train, y_train)
 
