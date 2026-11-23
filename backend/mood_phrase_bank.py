@@ -117,6 +117,28 @@ RESOLVED = [
     "par baad mein mil gaya", "lekin dost ne madad kar di", "par sab sambhal gaya",
 ]
 
+# Fun done without telling the family; reused by the builder for
+# "I bunked with friends, but my dad saw me"
+SECRET_FUN = [
+    "I skipped class and went out with my friends", "I sneaked out to meet my friends",
+    "I told mom I had tuition but went to the mall", "I bunked the lecture and watched a movie",
+    "I went on a trip with friends without telling home", "I stayed out late at a party without permission",
+    "aaj tuition chhodke dosto ke saath movie dekhne gaya", "mummy ko library bolke cafe chali gayi",
+    "lecture bunk karke dosto ke saath ghoomne gayi", "ghar pe jhooth bolke party mein gaya tha",
+    "class chhodke dosto ke saath bahar khaane gaye", "bina bataye dosto ke saath trip pe chali gayi",
+]
+
+# What happens next. Combined with SECRET_FUN and labelled anxious only:
+# the fun doesn't matter, the fear of getting scolded does
+CAUGHT_BY_FAMILY = [
+    "but my dad saw me there", "but my uncle saw us and will tell mom",
+    "but mom found out", "but a neighbour saw me and will tell my parents",
+    "but my teacher called my father", "but my sister saw me and might tell everyone at home",
+    "lekin wahan papa ne dekh liya", "par chacha ne dekh liya ab ghar pe bata denge",
+    "lekin mummy ko pata chal gaya", "par padosi ne dekh liya ab ghar pe bol dega",
+    "lekin teacher ne papa ko phone kar diya", "aur ghar pe call aa gaya",
+]
+
 # (setup, the setup's own moods, what happened next, moods of the whole sentence)
 CONTRAST_PATTERNS = [
     (KINDNESS, ["happy"], BETRAYED_AFTER_HELP, ["angry", "sad"]),
@@ -124,6 +146,7 @@ CONTRAST_PATTERNS = [
     (EFFORT, ["happy"], UNFAIR_RESULT, ["angry", "sad"]),
     (MISHAPS, ["sad"], RESOLVED, ["happy"]),
     (RESCUE, ["neutral"], HURT_WHILE_HELPING, ["sad"]),
+    (SECRET_FUN, ["happy"], CAUGHT_BY_FAMILY, ["anxious"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words
