@@ -1527,7 +1527,7 @@ body {
 
 .affirmation-flip {
   position: relative;
-  min-height: 72px;
+  min-height: 92px;
   transform-style: preserve-3d;
   transition: transform 0.8s var(--ease-out);
   perspective: 800px;
@@ -3758,4 +3758,89 @@ body.dark-mode .password-toggle[aria-pressed="true"] {
 .history-more button:hover {
   transform: translateY(-2px);
   background: #e0e7ff;
+}
+
+/* Calm-minute sound picker */
+.breath-setup .breath-sound-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.breath-sounds {
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.breath-sounds button {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* Daily affirmation: today's little good thing */
+.affirmation-good {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.3s ease;
+}
+
+.affirmation-good > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.affirmation-good small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  text-transform: uppercase;
+}
+
+.affirmation-good p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: opacity 0.3s ease;
+}
+
+.affirmation-good button {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  background: transparent;
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s var(--ease-spring);
+}
+
+.affirmation-good button:hover {
+  transform: scale(1.06);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.affirmation-good.is-done {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.affirmation-good.is-done p {
+  opacity: 0.75;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.affirmation-good.is-done button {
+  background: white;
+  color: #b0559a;
 }

@@ -2,6 +2,9 @@
  * Peaceful soundscapes made in the browser with the Web Audio API.
  * No audio files. Nature sounds and gentle music, layered from simple pieces:
  *
+ *   calm   - a warm, slow pad with soft singing-bowl rings
+ *   breath - the same pad, but it swells on the in-breath and fades on the
+ *            out-breath (the breathing session drives it with breathe())
  *   forest - birdsong over a soft breeze
  *   stream - a babbling brook with the odd bubble
  *   night  - crickets, a far-off owl and a low warm hum
@@ -21,6 +24,7 @@
 
 export const SOUNDS = [
   { key: "auto", icon: "✨", label: "Auto" },
+  { key: "calm", icon: "🪷", label: "Calm" },
   { key: "forest", icon: "🐦", label: "Birds" },
   { key: "stream", icon: "🏞️", label: "Stream" },
   { key: "night", icon: "🦗", label: "Night" },
@@ -50,6 +54,13 @@ const MINOR = [57, 60, 62, 64, 67, 69, 72, 74];
 const MINOR_MOODS = new Set(["sad", "tired", "anxious"]);
 
 const VOLUME = 0.5;
+
+// The calm pad: how loud/bright it is at the bottom and top of a breath
+const PAD_SCALE = 0.7;
+const PAD_LOW = 0.4;
+const PAD_HIGH = 1;
+const FILTER_LOW = 450;
+const FILTER_HIGH = 1400;
 const FADE_SECONDS = 4;
 // Stopping fades faster than starting, so "off" feels immediate
 const STOP_SECONDS = 1.2;
@@ -148,7 +159,9 @@ class AmbientMusic {
 
     this.session = session;
 
-    if (chosen === "forest") {
+    if (chosen === "calm" || chosen === "breath") {
+      this.calm(session, chosen === "breath");
+    } else if (chosen === "forest") {
       this.breeze(session, 0.06);
       this.birds(session);
     } else if (chosen === "stream") {
@@ -382,14 +395,14 @@ class AmbientMusic {
   }
 
   // Singing bowl: a few slightly "out of tune" partials ringing long
-  bowl(session, midi) {
+  bowl(session, midi, strength = 1) {
     const ctx = this.ctx;
     const t = ctx.currentTime;
 
     [
-      [1, 0.09],
-      [2.76, 0.03],
-      [5.4, 0.01],
+      [1, 0.09 * strength],
+      [2.76, 0.03 * strength],
+      [5.4, 0.01 * strength],
     ].forEach(([ratio, amount]) => {
       const osc = ctx.createOscillator();
       osc.type = "sine";
@@ -421,6 +434,122 @@ class AmbientMusic {
     };
 
     session.timers.push(setTimeout(strike, 800));
+  }
+
+  // ---------- calm ----------
+
+  // A warm D-major drone. Every note has a slightly detuned twin, which
+  // makes the slow "shimmer" that sounds like a held breath. A low-pass
+  // filter keeps it round; it drifts a little on its own, and in the guided
+  // version the breathing session opens and closes it with the breath.
+  calm(session, guided) {
+    const ctx = this.ctx;
+
+    const level = ctx.createGain();
+    level.gain.value = guided ? PAD_LOW : 0.7;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.Q.value = 0.7;
+    filter.frequency.value = guided ? FILTER_LOW : 900;
+
+    filter.connect(level);
+    level.connect(session.master);
+    level.connect(session.echo);
+
+    // [midi note, loudness, wave]: D2 D3 A3 D4 F#4 A4
+    [
+      [38, 0.05, "sine"],
+      [50, 0.045, "sine"],
+      [57, 0.035, "triangle"],
+      [62, 0.025, "sine"],
+      [66, 0.012, "sine"],
+      [69, 0.01, "sine"],
+    ].forEach(([midi, amount, wave]) => {
+      [-5, 5].forEach((cents) => {
+        const osc = ctx.createOscillator();
+        osc.type = wave;
+        osc.frequency.value = frequency(midi);
+        osc.detune.value = cents;
+
+        const gain = ctx.createGain();
+        gain.gain.value = (amount * PAD_SCALE) / 2;
+
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start();
+        session.sources.push(osc);
+      });
+    });
+
+    // The filter drifts slowly by itself so the pad never sounds static
+    const drift = ctx.createOscillator();
+    drift.frequency.value = 0.06;
+    const driftAmount = ctx.createGain();
+    driftAmount.gain.value = 90;
+    drift.connect(driftAmount);
+    driftAmount.connect(filter.frequency);
+    drift.start();
+    session.sources.push(drift);
+
+    // A little air under it
+    const air = this.loopNoise(session);
+    const airFilter = ctx.createBiquadFilter();
+    airFilter.type = "lowpass";
+    airFilter.frequency.value = 300;
+    const airLevel = ctx.createGain();
+    airLevel.gain.value = 0.035;
+    air.connect(airFilter);
+    airFilter.connect(airLevel);
+    airLevel.connect(session.master);
+
+    session.calm = { level, filter, guided };
+
+    // Unguided, a bowl rings now and then; guided, the breaths ring them
+    if (!guided) {
+      const notes = [62, 57, 66, 69];
+
+      const strike = () => {
+        if (session.stopped) return;
+
+        this.bowl(session, notes[Math.floor(Math.random() * notes.length)], 0.8);
+        session.timers.push(setTimeout(strike, random(8, 13) * 1000));
+      };
+
+      session.timers.push(setTimeout(strike, 1500));
+    }
+  }
+
+  // Called by the breathing session at the start of every phase
+  breathe(phase, seconds) {
+    const session = this.session;
+    if (!this.ctx || !session || !session.calm || !session.calm.guided) return;
+
+    const { level, filter } = session.calm;
+    const t = this.ctx.currentTime;
+
+    const moveTo = (gain, cutoff, over) => {
+      [level.gain, filter.frequency].forEach((param) => {
+        param.cancelScheduledValues(t);
+        param.setValueAtTime(param.value, t);
+      });
+
+      level.gain.linearRampToValueAtTime(gain, t + over);
+      filter.frequency.linearRampToValueAtTime(cutoff, t + over);
+    };
+
+    if (phase === "in") {
+      // The pad swells and brightens as the breath fills, with a bowl ring
+      moveTo(PAD_HIGH, FILTER_HIGH, seconds);
+      this.bowl(session, 62, 0.7);
+    } else if (phase === "out") {
+      // ...and settles as it leaves, with one soft high note
+      moveTo(PAD_LOW, FILTER_LOW, seconds);
+      this.pluck(session, 74, 0.03);
+    } else if (phase === "rest") {
+      moveTo(PAD_LOW, FILTER_LOW, Math.min(seconds, 1));
+    }
+    // "hold": stays where the in-breath left it
   }
 
   // ---------- nature ----------

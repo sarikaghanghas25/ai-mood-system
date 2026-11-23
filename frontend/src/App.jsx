@@ -485,6 +485,17 @@ const BREATH_PATTERNS = {
 
 const BREATH_MINUTES = [1, 3, 5];
 
+// Background sounds for the session. "breath" is the calm pad that swells
+// and fades with each breath; the rest are the nature sounds.
+const BREATH_SOUNDS = [
+  { key: "breath", icon: "🪷", label: "Calm" },
+  { key: "stream", icon: "🏞️", label: "Stream" },
+  { key: "night", icon: "🦗", label: "Night" },
+  { key: "rain", icon: "🌧️", label: "Rain" },
+  { key: "ocean", icon: "🌊", label: "Ocean" },
+  { key: "off", icon: "🔇", label: "Silent" },
+];
+
 // The breathing suggestion in the result: words and pattern per mood
 const BREATH_PROMPTS = {
   tired: { pattern: "relax", title: "Feeling tired? A slow 4-7-8 breath helps you rest" },
@@ -504,7 +515,7 @@ const BREATH_PROMPTS = {
 function BreathingSession({ initialPattern = "calm", onClose }) {
   const [pattern, setPattern] = useState(initialPattern);
   const [minutes, setMinutes] = useState(1);
-  const [withSound, setWithSound] = useState(true);
+  const [soundKey, setSoundKey] = useState("breath");
   // "setup" -> "running" -> "done"
   const [stage, setStage] = useState("setup");
   const [elapsed, setElapsed] = useState(0);
@@ -528,17 +539,17 @@ function BreathingSession({ initialPattern = "calm", onClose }) {
     if (stage === "running" && elapsed >= total) setStage("done");
   }, [elapsed, total, stage]);
 
-  // Nature sound only while breathing; silence otherwise, so the
+  // The chosen sound only while breathing; silence otherwise, so the
   // recommendations' sound doesn't play under the session
   useEffect(() => {
-    if (stage === "running" && withSound) {
-      ambientMusic.play("neutral", pattern === "relax" ? "night" : "stream");
+    if (stage === "running" && soundKey !== "off") {
+      ambientMusic.play("neutral", soundKey);
     } else if (stage === "running") {
       ambientMusic.stop();
     }
 
     return () => ambientMusic.stop();
-  }, [stage, withSound, pattern]);
+  }, [stage, soundKey]);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -560,6 +571,15 @@ function BreathingSession({ initialPattern = "calm", onClose }) {
     offset -= step.seconds;
   }
   const secondsLeft = current.seconds - offset;
+
+  // The calm pad follows the breath: told at the start of every phase
+  const phaseStart = stage === "running" && offset === 0;
+  const phaseName = current.phase;
+  const phaseSeconds = current.seconds;
+
+  useEffect(() => {
+    if (phaseStart) ambientMusic.breathe(phaseName, phaseSeconds);
+  }, [phaseStart, elapsed, phaseName, phaseSeconds]);
 
   const start = () => {
     ambientMusic.unlock();
@@ -610,14 +630,20 @@ function BreathingSession({ initialPattern = "calm", onClose }) {
             ))}
           </div>
 
-          <label className="breath-sound">
-            <input
-              type="checkbox"
-              checked={withSound}
-              onChange={(event) => setWithSound(event.target.checked)}
-            />
-            🎧 Nature sound in the background
-          </label>
+          <p className="breath-sound-label">🎧 Background sound</p>
+
+          <div className="breath-minutes breath-sounds">
+            {BREATH_SOUNDS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={soundKey === item.key ? "is-active" : ""}
+                onClick={() => setSoundKey(item.key)}
+              >
+                {item.icon} {item.label}
+              </button>
+            ))}
+          </div>
 
           <button type="button" className="breath-start" onClick={start}>
             Begin
@@ -2122,12 +2148,177 @@ const AFFIRMATIONS = {
   ],
 };
 
+// More lines per mood, on top of AFFIRMATIONS above
+const AFFIRMATIONS_MORE = {
+  happy: [
+    "Good things find you because you stay open to them 🌈",
+    "Your smile can change someone's day today 😄",
+    "You've earned this good moment. Soak it in 🌞",
+    "Name one thing you're thankful for today 💛",
+    "Keep doing what lights you up 🔆",
+  ],
+  sad: [
+    "Healing isn't a straight line, and that's okay 🌱",
+    "Even the darkest night ends with a sunrise 🌅",
+    "You've survived every hard day so far 💪",
+    "Talking to someone you trust lightens the load 🤝",
+    "Small kind things count today: water, food, rest 🫶",
+  ],
+  angry: [
+    "Strong people choose calm over a quick comeback 🌊",
+    "Setting a boundary is not being rude 🛡️",
+    "Let the wave pass, then decide 🌊",
+    "Unclench your jaw and drop your shoulders 😌",
+    "Your anger is a message. Listen, then answer with care 💬",
+  ],
+  tired: [
+    "Sleep is a gift you give your future self 😴",
+    "Doing less today is allowed 🍃",
+    "Drink some water and stretch; your body will thank you 💧",
+    "You are not lazy, you are human 🤍",
+    "Tomorrow-you will be grateful for tonight's rest 🌙",
+  ],
+  anxious: [
+    "This feeling will pass, like clouds do ☁️",
+    "Name five things you can see right now 👀",
+    "You don't need all the answers tonight 🌌",
+    "Most fears never happen, and you cope with the rest 🌿",
+    "Ground yourself: feel your feet on the floor 🦶",
+  ],
+  stressed: [
+    "You've done hard things before 🏔️",
+    "Break it into the smallest next step 🪜",
+    "A 5-minute walk can reset your mind 🚶",
+    "Done is better than perfect ✅",
+    "Your worth isn't your to-do list 💛",
+  ],
+  neutral: [
+    "A calm day is a good day 🌿",
+    "Try one tiny new thing today 🧭",
+    "Your quiet days are building something strong 🌳",
+    "Be proud of getting through ordinary days 🌤️",
+    "Send a kind message to someone today 💌",
+  ],
+};
+
+// Good for any mood: mixed into every day's pool
+const GENERAL_AFFIRMATIONS = [
+  "You are doing better than you think 🌟",
+  "Good things are on their way to you 🍀",
+  "Your effort matters, even when nobody sees it 🌱",
+  "You are allowed to take up space ✨",
+  "Today is a new page. Write something kind 📖",
+  "You are stronger than yesterday's worries 💪",
+  "Be proud of how far you've come 🌄",
+  "Kindness to yourself is never wasted 💛",
+  "Your presence makes a difference 🌍",
+  "You can start again, any day, any moment 🔄",
+  "Slow progress is still progress 🐢",
+  "You are enough, exactly as you are 🤍",
+  "Choose one thing today that makes you smile 😊",
+  "Hard days make you wiser, not weaker 🌳",
+  "There are people who care about you 🫂",
+  "Trust the timing of your life ⏳",
+  "Courage is feeling nervous and trying anyway 🦋",
+  "Your dreams are worth the patience 🌠",
+  "Rest, then rise. Both are part of the journey 🌅",
+  "You bring something to this world no one else can 🎨",
+  "Let go of what you can't control 🎈",
+  "Every day you try is a day you win 🏆",
+  "Be gentle: you're learning as you go 🌼",
+  "Joy lives in small moments. Look for one today 🔍",
+  "You are growing even when it doesn't feel like it 🌿",
+  "Your future self is cheering for you 📣",
+  "Breathe. You've got this 🌬️",
+  "Mistakes are proof you're trying 📝",
+  "The sun rises for you every morning too ☀️",
+  "You're allowed to be proud of small wins 🎉",
+  "You are not behind. You're on your own path 🛤️",
+  "Gratitude turns what we have into enough 💫",
+  "Your kindness comes back to you in beautiful ways 💌",
+  "Asking for help is a strength 🤝",
+  "You deserve rest, joy and peace 🕊️",
+  "Keep going. Something good is being built 🏗️",
+  "You are loved, even on your quiet days 💞",
+  "Believe in the person you are becoming 🌟",
+  "Today you can be the reason someone smiles 😊",
+];
+
+// One tiny good thing to do each day
+const DAILY_GOOD = [
+  "Drink a full glass of water 💧",
+  "Step outside for 5 minutes of fresh air 🌳",
+  "Text someone you haven't spoken to in a while 💬",
+  "Say thank you to someone, and mean it 🙏",
+  "Stretch your arms and neck for one minute 🧘",
+  "Write down three good things from today 📝",
+  "Listen to a song you love, phone down 🎵",
+  "Give someone a genuine compliment 💐",
+  "Tidy one small corner of your room 🧹",
+  "Eat one fruit today 🍎",
+  "Take five slow, deep breaths 🌬️",
+  "Call your parents or someone you love 📞",
+  "Keep your phone away for 20 minutes 📵",
+  "Look at the sky for a full minute ☁️",
+  "Do one postponed thing, just for 5 minutes ⏱️",
+  "Forgive yourself for one small mistake 🤍",
+  "Smile at someone you pass today 😊",
+  "Go to bed 15 minutes earlier tonight 🌙",
+  "Eat your favourite meal slowly 🍛",
+  "Walk for 10 minutes with no destination 🚶",
+  "Send a kind message to a friend 💌",
+  "Say one thing you like about yourself out loud 🪞",
+  "Watch the sunset or sunrise today 🌇",
+  "Help someone with something small 🤝",
+  "Water a plant or put out water for the birds 🌱",
+  "Dance to one song, anywhere 💃",
+  "Read a few pages of a book 📖",
+  "Drink your tea or coffee slowly, without hurrying ☕",
+  "Take a warm shower and let the day wash off 🚿",
+  "Make your bed or clear your desk: a tiny win ✅",
+  "Remind a friend that they matter 💛",
+  "Doodle or colour for 10 minutes 🎨",
+  "Stand in the sunlight for a few minutes ☀️",
+  "Do something kind without telling anyone 🌸",
+  "Think of one thing you're looking forward to 🌈",
+  "Put on a clean, comfortable outfit and feel good in it 👕",
+];
+
+// Whole days since 1970 in the user's own time zone
+const localDayNumber = (date = new Date()) =>
+  Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
+
+const greatestCommonDivisor = (a, b) => (b ? greatestCommonDivisor(b, a % b) : a);
+
+// A different item every day, with no repeat until the whole list has been
+// used: step through it by a number that shares no factor with its length.
+const dailyIndex = (length, day, salt = 0) => {
+  const stride = [7, 11, 13, 17, 19, 23, 29].find(
+    (candidate) => greatestCommonDivisor(candidate, length) === 1
+  );
+
+  return (day * stride + salt * 3) % length;
+};
+
 function AffirmationCard({ mood }) {
   const key = String(mood || "").toLowerCase();
-  const lines = AFFIRMATIONS[key] || AFFIRMATIONS.neutral;
+  const day = localDayNumber();
+
+  // The mood's own lines plus the good-for-everyone ones; today's pick is
+  // fixed by the date, so it is the same all day and new tomorrow
+  const lines = useMemo(
+    () => [
+      ...(AFFIRMATIONS[key] || AFFIRMATIONS.neutral),
+      ...(AFFIRMATIONS_MORE[key] || AFFIRMATIONS_MORE.neutral),
+      ...GENERAL_AFFIRMATIONS,
+    ],
+    [key]
+  );
+
+  const todayLine = dailyIndex(lines.length, day);
 
   // Two faces: the front shows faces[0] and the back faces[1]
-  const [faces, setFaces] = useState([0, 1]);
+  const [faces, setFaces] = useState([todayLine, (todayLine + 1) % lines.length]);
   const [flipped, setFlipped] = useState(false);
 
   const next = () => {
@@ -2137,6 +2328,30 @@ function AffirmationCard({ mood }) {
     // Put the next line on the hidden face, then flip to it
     setFaces(flipped ? [upcoming, faces[1]] : [faces[0], upcoming]);
     setFlipped(!flipped);
+  };
+
+  // Today's little good thing, and whether it has been done
+  const goodThing = DAILY_GOOD[dailyIndex(DAILY_GOOD.length, day, 1)];
+  const doneKey = `good_thing_done_${day}`;
+
+  const [done, setDone] = useState(() => {
+    try {
+      return localStorage.getItem(doneKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDone = () => {
+    const next = !done;
+    setDone(next);
+
+    try {
+      if (next) localStorage.setItem(doneKey, "1");
+      else localStorage.removeItem(doneKey);
+    } catch {
+      // Not remembered; it still works for this visit
+    }
   };
 
   return (
@@ -2153,6 +2368,22 @@ function AffirmationCard({ mood }) {
         <p className="affirmation-face affirmation-back">
           {lines[faces[1] % lines.length]}
         </p>
+      </div>
+
+      <div className={`affirmation-good ${done ? "is-done" : ""}`}>
+        <div>
+          <small>✨ Today&apos;s little good thing</small>
+          <p>{goodThing}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleDone}
+          aria-pressed={done}
+          aria-label={done ? "Mark as not done" : "Mark as done"}
+        >
+          {done ? "✓ Done" : "Done?"}
+        </button>
       </div>
     </div>
   );
