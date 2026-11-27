@@ -140,6 +140,7 @@ CAUGHT_BY_FAMILY = [
     "but mom found out", "but a neighbour saw me and will tell my parents",
     "but my teacher called my father", "but my sister saw me and might tell everyone at home",
     "lekin wahan papa ne dekh liya", "par chacha ne dekh liya ab ghar pe bata denge",
+    "lekin wha papa ne dekh lia",
     "lekin mummy ko pata chal gaya", "par padosi ne dekh liya ab ghar pe bol dega",
     "lekin teacher ne papa ko phone kar diya", "aur ghar pe call aa gaya",
     "and everyone at home was upset when I walked in", "and now my parents know about it",
@@ -188,9 +189,11 @@ BAD_START = [
     "but got into an accident the same day", "but it got a big scratch on the first day",
     "but it broke down within an hour", "but someone hit it in the parking lot",
     "but I had an accident on the way home", "but a thief broke into it the very first night",
+    "but got into an accident", "but then I crashed it",
     "lekin usi din accident ho gaya", "par pehle hi din usme scratch aa gaya",
     "lekin ghar aate hi wo kharab ho gayi", "par parking mein kisi ne tod di",
     "lekin raste mein hi meri gaadi ka accident ho gaya", "par pehli hi raat chori ho gayi",
+    "lekin accident ho gaya",
 ]
 
 # A present I was just given; reused by the builder for
@@ -214,6 +217,25 @@ GIFT_LOST = [
     "lekin agle hi din chalna band ho gaya",
 ]
 
+# Something I just got for myself; reused by the builder for
+# "today I got a new mobile, but it broke after some time"
+JUST_GOT = [
+    "today i got a new mobile", "I got a new phone", "I got new headphones", "I bought a new watch",
+    "I bought new shoes", "I got a new tablet today", "I ordered a new speaker and it came today",
+    "aaj naya mobile liya", "mne new phone lia", "maine nayi ghadi kharidi", "aaj naye earphones liye",
+    "mujhe aaj naya tablet mila",
+]
+
+# It stops being any use a little later (no accident, nobody to blame).
+# Labelled sad only, like a gift that breaks.
+BROKE_SOON = [
+    "but it broke after some time", "but it broke after a few hours", "but it stopped working after two days",
+    "but they stopped working soon", "but the screen cracked a little later", "but it got damaged in the evening",
+    "but it stopped turning on after a while",
+    "lekin thodi der baad toot gaya", "pr kuch time baad kharab hogya", "par do din mein hi kharab ho gaya",
+    "lekin kuch ghante baad band ho gaya", "par thodi der mein uski screen toot gayi",
+]
+
 # (setup, the setup's own moods, what happened next, moods of the whole sentence)
 CONTRAST_PATTERNS = [
     (KINDNESS, ["happy"], BETRAYED_AFTER_HELP, ["angry", "sad"]),
@@ -225,6 +247,7 @@ CONTRAST_PATTERNS = [
     (WORK_GOING_WELL, ["happy"], WORK_SLIP, ["anxious", "stressed"]),
     (NEW_THING, ["happy"], BAD_START, ["sad", "anxious"]),
     (GIFT_GIVEN, ["happy"], GIFT_LOST, ["sad"]),
+    (JUST_GOT, ["happy"], BROKE_SOON, ["sad"]),
 ]
 
 # (moods, sentences): things that happen, mostly without emotion words

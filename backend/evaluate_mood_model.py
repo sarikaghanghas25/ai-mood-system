@@ -115,6 +115,7 @@ USER_REPORTED = [
     ("I bought a new car but got into an accident", {"sad", "anxious"}),
     ("my friend gave me watch", {"happy"}),
     ("my friend gave me watch but in my home way it break", {"sad"}),
+    ("today i got a new mobile but it broke after some time", {"sad"}),
     ("aaj meri business meeting thi wo shi jari thi lakin ppt nhi chli ab meri job kahtre me h", {"anxious", "stressed"}),
     ("aaj mera phone band ho gaya", {"sad"}),
     ("aaj mne shrab pi or ghr p gya sab sore the or papa ko pta cha gya", {"anxious"}),
